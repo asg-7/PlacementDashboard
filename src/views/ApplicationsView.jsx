@@ -6,6 +6,9 @@ export default function ApplicationsView({ state, mutateState, addToast }) {
   const canvasRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
+  // Internship modal state
+  const [editingInternship, setEditingInternship] = useState(null); // null or {} for edit/add
+
   const s = state;
   const statuses = ['not applied', 'applied', 'under review', 'OA received', 'interview', 'accepted', 'rejected'];
   
@@ -20,6 +23,9 @@ export default function ApplicationsView({ state, mutateState, addToast }) {
 
   // Filtered list
   const filteredCompanies = s.companies.filter(c => filter === 'all' || c.status === filter);
+  
+  // Internships list
+  const internships = s.internships || [];
 
   const handleUpdateStatus = (id, newStatus) => {
     mutateState(draft => {
@@ -29,10 +35,49 @@ export default function ApplicationsView({ state, mutateState, addToast }) {
     addToast('Status updated ✓');
   };
 
-  const handleAddCompanyShortcut = () => {
-    // Navigate to companies tab to add a company, or trigger a modal
-    // For simplicity, we can let them add in the companies tab, or we can add it here.
-    addToast('Go to Companies view to add targets', 'var(--electric)');
+  // Internship Handlers
+  const handleUpdateInternshipStatus = (id, newStatus) => {
+    mutateState(draft => {
+      const intern = draft.internships.find(x => x.id === id);
+      if (intern) intern.status = newStatus;
+    });
+    addToast('Internship status updated ✓');
+  };
+
+  const handleDeleteInternship = (id) => {
+    if (!window.confirm('Delete this internship record?')) return;
+    mutateState(draft => {
+      draft.internships = (draft.internships || []).filter(x => x.id !== id);
+    });
+    addToast('Internship record removed', 'var(--coral)');
+  };
+
+  const handleSaveInternship = (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const company = form.companyName.value.trim();
+    const role = form.role.value.trim();
+    const platform = form.platform.value.trim();
+    const appliedDate = form.appliedDate.value;
+    const status = form.status.value;
+    const stipend = form.stipend.value.trim();
+    const notes = form.notes.value.trim();
+
+    mutateState(draft => {
+      if (!draft.internships) draft.internships = [];
+      const obj = { companyName: company, role, platform, appliedDate, status, stipend, notes };
+      
+      if (editingInternship.id) {
+        const target = draft.internships.find(x => x.id === editingInternship.id);
+        if (target) Object.assign(target, obj);
+      } else {
+        const newId = '_' + Math.random().toString(36).substr(2, 9);
+        draft.internships.push({ id: newId, ...obj });
+      }
+    });
+
+    setEditingInternship(null);
+    addToast('Internship saved ✓');
   };
 
   useEffect(() => {
@@ -75,15 +120,17 @@ export default function ApplicationsView({ state, mutateState, addToast }) {
 
   return (
     <div style={{ animation: 'fade-in 0.4s ease-out' }}>
+      
+      {/* PAGE HEADER */}
       <div className="ph">
         <div>
           <div className="ph-eyebrow">Pipeline Tracker</div>
           <div className="ph-title">Applications</div>
           <div className="ph-sub">Across {s.companies.length} target companies</div>
         </div>
-        <button className="btn btn-primary" onClick={handleAddCompanyShortcut}>+ Add Company</button>
       </div>
 
+      {/* METRIC STRIP */}
       <div className="g4" style={{ marginBottom: '20px' }}>
         <div className="metric">
           <div className="metric-val" style={{ color: 'var(--electric)' }}>{appSent}</div>
@@ -107,9 +154,10 @@ export default function ApplicationsView({ state, mutateState, addToast }) {
         </div>
       </div>
 
-      <div className="g2">
+      {/* CHARTS AND LIST SECTION */}
+      <div className="g2" style={{ marginBottom: '24px' }}>
         <div className="card">
-          <div className="card-hdr"><div class="card-title">Pipeline Breakdown</div></div>
+          <div className="card-hdr"><div className="card-title">Pipeline Breakdown</div></div>
           <div style={{ position: 'relative', height: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <canvas ref={canvasRef}></canvas>
           </div>
@@ -136,7 +184,7 @@ export default function ApplicationsView({ state, mutateState, addToast }) {
               ))}
             </select>
           </div>
-          <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+          <div style={{ maxHeight: '330px', overflowY: 'auto' }}>
             {filteredCompanies.length === 0 ? (
               <div className="note-box" style={{ textAlign: 'center', padding: '20px' }}>
                 No applications matching this filter.
@@ -159,6 +207,123 @@ export default function ApplicationsView({ state, mutateState, addToast }) {
           </div>
         </div>
       </div>
+
+      {/* INTERNSHIP FALLBACK PIPELINE SECTION */}
+      <div className="card" style={{ borderLeft: '4px solid var(--amber)' }}>
+        <div className="card-hdr" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div>
+            <div className="card-title" style={{ color: 'var(--amber)' }}>Parallel Track (Fallback Plan)</div>
+            <div className="card-label" style={{ fontSize: '16px' }}>Internships Pipeline</div>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => setEditingInternship({})}>+ Add Internship</button>
+        </div>
+
+        {internships.length === 0 ? (
+          <div className="empty">
+            <div className="empty-icon">🎒</div>
+            <div className="empty-msg">No internships logged yet. Build fallbacks for volume safety.</div>
+          </div>
+        ) : (
+          <div className="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Role</th>
+                  <th>Platform</th>
+                  <th>Applied Date</th>
+                  <th>Stipend</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {internships.map(intern => (
+                  <tr key={intern.id}>
+                    <td><strong>{intern.companyName}</strong></td>
+                    <td>{intern.role}</td>
+                    <td><span className="badge b-blue" style={{ fontSize: '8px' }}>{intern.platform}</span></td>
+                    <td><div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--t3)' }}>{intern.appliedDate}</div></td>
+                    <td><span style={{ color: 'var(--volt)', fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '11px' }}>{intern.stipend || '—'}</span></td>
+                    <td>
+                      <select className="ss" style={{ minWidth: '100px' }} value={intern.status} onChange={(e) => handleUpdateInternshipStatus(intern.id, e.target.value)}>
+                        {statuses.map(st => (
+                          <option value={st} key={st}>{st}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td><div style={{ fontSize: '11px', color: 'var(--t3)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={intern.notes}>{intern.notes || '—'}</div></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <button className="btn btn-ghost btn-xs" onClick={() => setEditingInternship(intern)}>Edit</button>
+                        <button className="btn btn-danger btn-xs" onClick={() => handleDeleteInternship(intern.id)}>Del</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* INTERNSHIP EDIT / ADD MODAL */}
+      {editingInternship !== null && (
+        <div className="moverlay" onClick={() => setEditingInternship(null)}>
+          <div className="mbox" onClick={(e) => e.stopPropagation()}>
+            <div className="mtitle">
+              {editingInternship.id ? 'Edit Internship Record' : 'Add Internship Record'}
+              <button className="mclose" onClick={() => setEditingInternship(null)}>×</button>
+            </div>
+            <form onSubmit={handleSaveInternship} className="modal-scroll">
+              <div className="fr">
+                <div className="fg">
+                  <label>Company Name</label>
+                  <input name="companyName" defaultValue={editingInternship.companyName || ''} required />
+                </div>
+                <div className="fg">
+                  <label>Role</label>
+                  <input name="role" defaultValue={editingInternship.role || ''} placeholder="e.g. AI Intern" required />
+                </div>
+              </div>
+              <div className="fr">
+                <div className="fg">
+                  <label>Platform</label>
+                  <input name="platform" defaultValue={editingInternship.platform || ''} placeholder="e.g. Internshala, LinkedIn" />
+                </div>
+                <div className="fg">
+                  <label>Applied Date</label>
+                  <input name="appliedDate" type="date" defaultValue={editingInternship.appliedDate || new Date().toISOString().slice(0, 10)} required />
+                </div>
+              </div>
+              <div className="fr">
+                <div className="fg">
+                  <label>Stipend</label>
+                  <input name="stipend" defaultValue={editingInternship.stipend || ''} placeholder="e.g. Rs.20,000/month" />
+                </div>
+                <div className="fg">
+                  <label>Status</label>
+                  <select name="status" defaultValue={editingInternship.status || 'applied'}>
+                    {statuses.map(st => (
+                      <option value={st} key={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="fg">
+                <label>Notes / Links</label>
+                <textarea name="notes" rows="2" defaultValue={editingInternship.notes || ''}></textarea>
+              </div>
+              <div className="m-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setEditingInternship(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Record</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

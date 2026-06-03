@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useProgress } from '../hooks/useProgress';
+import { dsaTopicsData } from '../data/dsaTopics';
+import { striverTopics } from '../data/striverSheet';
+import { mlPhasesData } from '../data/mlResources';
 
-export default function DashboardView({ state, mutateState, onNavigate, todayContext }) {
+export default function DashboardView({ state, mutateState, onNavigate, todayContext, addToast }) {
   const s = state;
   const ctx = todayContext;
   const wt = s.weekTasks || {};
+
+  const [retro, setRetro] = useState(s.retro || { appsThisWeek: '', dsaThisWeek: '', wentWell: '', toImprove: '' });
 
   const appSent = s.companies.filter(c => c.status !== 'not applied').length;
   const certDone = s.certifications.filter(c => c.progress >= 100).length;
@@ -19,6 +25,23 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
   const overdueCount = ctx.overdueTasks.length;
 
   const certProgress = certTotal ? s.certifications.reduce((sum, c) => sum + (c.progress || 0), 0) / certTotal : 0;
+
+  // Curriculum Metrics
+  const { count: dsaRoadmapCount } = useProgress('dsa_roadmap');
+  const { count: striverCount } = useProgress('striver_a2z');
+  const { count: mlCount } = useProgress('ml_roadmap');
+
+  const totalDsaRoadmapProblems = dsaTopicsData.reduce((sum, t) => sum + t.problems.length, 0);
+  const totalStriverProblems = striverTopics.reduce((sum, t) => sum + t.problems.length, 0);
+  const totalMlResources = mlPhasesData.reduce((sum, p) => sum + p.resources.length, 0);
+
+  const dsaRoadmapPct = totalDsaRoadmapProblems > 0 ? Math.round((dsaRoadmapCount / totalDsaRoadmapProblems) * 100) : 0;
+  const striverPct = totalStriverProblems > 0 ? Math.round((striverCount / totalStriverProblems) * 100) : 0;
+  const mlPct = totalMlResources > 0 ? Math.round((mlCount / totalMlResources) * 100) : 0;
+
+  // Target Counts
+  const projectsDeployed = s.projects.filter(p => p.progress >= 100 || p.status === 'completed').length;
+  const hackathonsSubmitted = s.hackathons.filter(h => h.submission === 'submitted').length;
 
   const pending = s.companies.filter(c => c.status === 'applied').slice(0, 6);
 
@@ -64,6 +87,13 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
     );
   };
 
+  const handleSaveRetro = () => {
+    mutateState(draft => {
+      draft.retro = retro;
+    });
+    addToast('Weekly retrospective saved ✓');
+  };
+
   return (
     <div style={{ animation: 'fade-in 0.4s ease-out' }}>
       <div className="ph" style={{ marginBottom: '20px' }}>
@@ -77,6 +107,20 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
             ⚠ {overdueCount} overdue task{overdueCount > 1 ? 's' : ''}
           </div>
         )}
+      </div>
+
+      {/* CGPA REMINDER NOTE */}
+      <div className="card" style={{ background: 'var(--amber-dim)', border: '1px solid rgba(255, 184, 0, 0.25)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ fontSize: '24px' }}>⚡</div>
+        <div>
+          <div style={{ fontWeight: 700, color: 'var(--amber)', fontSize: '13px', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            KIIT 2026 Candidate CGPA Reframe
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--t1)', marginTop: '2px', lineHeight: 1.4 }}>
+            Your CGPA is <strong>6.8</strong> — Eligible for TCS, Infosys, HCLTech, Cognizant, Accenture.
+            Compensate for higher-tier filters with: <strong>3+ live project deployments</strong> • <strong>3+ hackathon team submissions</strong> • <strong>IBM/Google certifications</strong>.
+          </div>
+        </div>
       </div>
 
       {/* TODAY'S BRIEFING */}
@@ -153,6 +197,39 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
         </div>
       </div>
 
+      {/* CURRICULUM MODULES PROGRESS */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: '10px', fontWeight: 700, color: 'var(--t3)', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>
+          Curriculum Cockpit
+        </div>
+        <div className="g3">
+          <div className="metric" onClick={() => onNavigate('dsa')} style={{ cursor: 'pointer' }}>
+            <div className="metric-icon">⟨⟩</div>
+            <div className="metric-val" style={{ color: 'var(--electric)' }}>{dsaRoadmapPct}%</div>
+            <div className="metric-lbl">DSA Roadmap</div>
+            <div className="metric-sub">{dsaRoadmapCount} of {totalDsaRoadmapProblems} solved</div>
+            <div className="metric-glow" style={{ background: 'var(--electric)' }}></div>
+            {renderProgressBar(dsaRoadmapPct, 'var(--electric)')}
+          </div>
+          <div className="metric" onClick={() => onNavigate('dsa')} style={{ cursor: 'pointer' }}>
+            <div className="metric-icon">🏆</div>
+            <div className="metric-val" style={{ color: 'var(--violet)' }}>{striverPct}%</div>
+            <div className="metric-lbl">Striver A2Z Sheet</div>
+            <div className="metric-sub">{striverCount} of {totalStriverProblems} solved</div>
+            <div className="metric-glow" style={{ background: 'var(--violet)' }}></div>
+            {renderProgressBar(striverPct, 'var(--violet)')}
+          </div>
+          <div className="metric" onClick={() => onNavigate('ml')} style={{ cursor: 'pointer' }}>
+            <div className="metric-icon">🧠</div>
+            <div className="metric-val" style={{ color: 'var(--volt)' }}>{mlPct}%</div>
+            <div className="metric-lbl">ML Roadmap</div>
+            <div className="metric-sub">{mlCount} of {totalMlResources} completed</div>
+            <div className="metric-glow" style={{ background: 'var(--volt)' }}></div>
+            {renderProgressBar(mlPct, 'var(--volt)')}
+          </div>
+        </div>
+      </div>
+
       <div className="g2">
         <div>
           {/* THIS WEEK'S TASKS */}
@@ -215,6 +292,46 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
         </div>
 
         <div>
+          {/* PLACEMENT SUCCESS TARGETS */}
+          <div className="card" style={{ marginBottom: '16px', borderLeft: '4px solid var(--violet)' }}>
+            <div className="card-hdr">
+              <div>
+                <div className="card-title" style={{ color: 'var(--violet)' }}>Success Target Counters</div>
+                <div className="card-label" style={{ fontSize: '14px', marginTop: '2px' }}>KIIT 2026 Benchmarks</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                  <span style={{ color: 'var(--t2)' }}>Applications Sent</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--electric)' }}>{appSent} / 500</span>
+                </div>
+                {renderProgressBar(appSent / 500 * 100, 'var(--electric)')}
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                  <span style={{ color: 'var(--t2)' }}>DSA Problems Solved</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--amber)' }}>{striverCount} / 250</span>
+                </div>
+                {renderProgressBar(striverCount / 250 * 100, 'var(--amber)')}
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                  <span style={{ color: 'var(--t2)' }}>Projects Deployed</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--volt)' }}>{projectsDeployed} / 5</span>
+                </div>
+                {renderProgressBar(projectsDeployed / 5 * 100, 'var(--volt)')}
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                  <span style={{ color: 'var(--t2)' }}>Hackathons Submitted</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--rose)' }}>{hackathonsSubmitted} / 3</span>
+                </div>
+                {renderProgressBar(hackathonsSubmitted / 3 * 100, 'var(--rose)')}
+              </div>
+            </div>
+          </div>
+
           {/* UPCOMING DEADLINES */}
           <div className="card" style={{ marginBottom: '16px' }}>
             <div className="card-hdr">
@@ -261,6 +378,57 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
             ) : (
               <div className="note-box">No active week found.</div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* WEEKLY RETROSPECTIVE */}
+      <div className="card" style={{ marginTop: '20px', borderTop: '2px solid var(--border)' }}>
+        <div className="card-hdr" style={{ marginBottom: '14px' }}>
+          <div>
+            <div className="card-title">Continuous Improvement</div>
+            <div className="card-label" style={{ fontSize: '16px' }}>Weekly Retrospective</div>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={handleSaveRetro}>Save Retro ✓</button>
+        </div>
+        <div className="fr" style={{ gap: '16px', marginBottom: '14px' }}>
+          <div className="fg">
+            <label>Applications Sent This Week</label>
+            <input
+              type="number"
+              value={retro.appsThisWeek || ''}
+              onChange={(e) => setRetro(prev => ({ ...prev, appsThisWeek: e.target.value }))}
+              placeholder="e.g. 24"
+            />
+          </div>
+          <div className="fg">
+            <label>DSA Problems Solved This Week</label>
+            <input
+              type="number"
+              value={retro.dsaThisWeek || ''}
+              onChange={(e) => setRetro(prev => ({ ...prev, dsaThisWeek: e.target.value }))}
+              placeholder="e.g. 15"
+            />
+          </div>
+        </div>
+        <div className="fr" style={{ gap: '16px' }}>
+          <div className="fg">
+            <label>What Went Well?</label>
+            <textarea
+              rows="3"
+              value={retro.wentWell || ''}
+              onChange={(e) => setRetro(prev => ({ ...prev, wentWell: e.target.value }))}
+              placeholder="Notes on what strategies worked..."
+            />
+          </div>
+          <div className="fg">
+            <label>What to Improve Next Week?</label>
+            <textarea
+              rows="3"
+              value={retro.toImprove || ''}
+              onChange={(e) => setRetro(prev => ({ ...prev, toImprove: e.target.value }))}
+              placeholder="Action items for next week..."
+            />
           </div>
         </div>
       </div>

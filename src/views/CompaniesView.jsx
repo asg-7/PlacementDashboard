@@ -57,9 +57,11 @@ export default function CompaniesView({ state, mutateState, addToast }) {
     const windowVal = form.windowVal.value.trim();
     const status = form.status.value;
     const notes = form.notes.value.trim();
+    const cgpa = Number(form.cgpa.value) || 6.0;
+    const challenge = form.hiringChallenge.checked;
 
     mutateState(draft => {
-      const obj = { companyName: name, role, ctc, window: windowVal, status, notes };
+      const obj = { companyName: name, role, ctc, window: windowVal, status, notes, cgpaCriteria: cgpa, hiringChallenge: challenge };
       if (editingCompany.id) {
         const c = draft.companies.find(x => x.id === editingCompany.id);
         if (c) Object.assign(c, obj);
@@ -122,6 +124,7 @@ export default function CompaniesView({ state, mutateState, addToast }) {
                 <th>Company</th>
                 <th>Role</th>
                 <th>CTC</th>
+                <th>CGPA Cutoff</th>
                 <th>Window</th>
                 <th>Status</th>
                 <th>Notes</th>
@@ -131,33 +134,46 @@ export default function CompaniesView({ state, mutateState, addToast }) {
             <tbody>
               {companies.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: 'var(--t3)' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: 'var(--t3)' }}>
                     No companies matching current criteria.
                   </td>
                 </tr>
               ) : (
-                companies.map(c => (
-                  <tr key={c.id}>
-                    <td><div style={{ fontWeight: 700, color: 'var(--t1)', fontSize: '13px' }}>{c.companyName}</div></td>
-                    <td><div style={{ color: 'var(--t2)', fontSize: '12px' }}>{c.role}</div></td>
-                    <td><div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--electric)' }}>{c.ctc}</div></td>
-                    <td><div style={{ fontSize: '11px', color: 'var(--t3)', fontFamily: 'var(--mono)' }}>{c.window}</div></td>
-                    <td>
-                      <select className="ss" value={c.status} onChange={(e) => handleUpdateStatus(c.id, e.target.value)}>
-                        {statuses.map(st => (
-                          <option value={st} key={st}>{st}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td><div style={{ fontSize: '11px', color: 'var(--t3)', maxWidth: '180px', lineHeight: '1.4' }}>{c.notes || '—'}</div></td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button className="btn btn-ghost btn-xs" onClick={() => setEditingCompany(c)}>Edit</button>
-                        <button className="btn btn-danger btn-xs" onClick={() => handleDelete(c.id)}>Del</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                companies.map(c => {
+                  const isEligible = 6.8 >= (c.cgpaCriteria || 0);
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--t1)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {c.companyName}
+                          {c.hiringChallenge && <span className="badge b-rose" style={{ fontSize: '7px', padding: '1px 4px' }}>Challenge</span>}
+                        </div>
+                      </td>
+                      <td><div style={{ color: 'var(--t2)', fontSize: '12px' }}>{c.role}</div></td>
+                      <td><div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--electric)' }}>{c.ctc}</div></td>
+                      <td>
+                        <span className={`badge ${isEligible ? 'b-green' : 'b-red'}`} style={{ fontSize: '9px' }}>
+                          {c.cgpaCriteria || '6.0'}+ {isEligible ? '✅' : '⚠️'}
+                        </span>
+                      </td>
+                      <td><div style={{ fontSize: '11px', color: 'var(--t3)', fontFamily: 'var(--mono)' }}>{c.window}</div></td>
+                      <td>
+                        <select className="ss" value={c.status} onChange={(e) => handleUpdateStatus(c.id, e.target.value)}>
+                          {statuses.map(st => (
+                            <option value={st} key={st}>{st}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td><div style={{ fontSize: '11px', color: 'var(--t3)', maxWidth: '180px', lineHeight: '1.4' }}>{c.notes || '—'}</div></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button className="btn btn-ghost btn-xs" onClick={() => setEditingCompany(c)}>Edit</button>
+                          <button className="btn btn-danger btn-xs" onClick={() => handleDelete(c.id)}>Del</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -191,6 +207,16 @@ export default function CompaniesView({ state, mutateState, addToast }) {
                 <div className="fg">
                   <label>Application Window</label>
                   <input name="windowVal" defaultValue={editingCompany.window || ''} />
+                </div>
+              </div>
+              <div className="fr">
+                <div className="fg">
+                  <label>CGPA Cutoff</label>
+                  <input name="cgpa" type="number" step="0.1" defaultValue={editingCompany.cgpaCriteria || 6.0} />
+                </div>
+                <div className="fg" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                  <input name="hiringChallenge" type="checkbox" defaultChecked={editingCompany.hiringChallenge || false} style={{ width: 'auto', cursor: 'pointer' }} />
+                  <label style={{ margin: 0 }}>Hiring Challenge Track</label>
                 </div>
               </div>
               <div className="fg">

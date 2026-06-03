@@ -4,7 +4,20 @@ A lightweight, client-side dashboard to plan, track, and execute placement roadm
 
 ---
 
-## ✨ Latest Update: DSA Sync, Solution Viewer & YouTube watch lists (2026-06-02)
+## ✨ Latest Update: Striver DSA Sheet & ML/AIML Roadmap Integration (2026-06-03)
+
+The dashboard has been updated to include comprehensive study modules for DSA and Machine Learning:
+
+- **Striver A2Z DSA Sheet**: Fully integrated curriculum containing 19 topics and 34 core problems with deep reference links. Implemented a gated lock mechanism requiring a 70% completion rate on previous sections to unlock the next.
+- **ML & AIML Roadmap**: A 5-phase interactive curriculum mapping core mathematics, classical algorithms, deep learning architectures, MLOps, and interview preparation resources.
+- **Curriculum Cockpit**: A new dashboard widget displaying real-time completion percentages for the custom DSA Roadmap, Striver A2Z Sheet, and ML Roadmap.
+- **Interactive Q&A Bank**: Preloaded deck of frequently asked Machine Learning theory and system design questions with interactive reveal cards.
+- **Cross-Platform Progress Hook**: A custom reactive event bus syncing localStorage checkmarks dynamically across widgets.
+- **Company Kits Filters**: Filter DSA problems by target company prep terms directly in the Company Kits tab.
+
+---
+
+## ✨ Previous Update: DSA Sync, Solution Viewer & YouTube watch lists (2026-06-02)
 
 The dashboard has been updated with advanced tracking capabilities for competitive coding and video tutorials:
 
@@ -285,78 +298,51 @@ Organized by category with CTCs ranging from Rs.3.5 LPA to Rs.16 LPA:
 Top-level layout (important files and folders):
 
 ```
-PLACEMENT_DASHBOARD_index.html    (Main dashboard - enhanced UI)
-PLACEMENT_DASHBOARD_README.md     (This file)
-UI_IMPROVEMENTS.md                (Detailed UI changes)
-components/
-  heatmap.js
-  modal.js
-data/
-  seed-data.js
-js/
-  analytics.js
-  app.js
-  applications.js
-  calendar.js
-  dashboard.js
-  dsa.js
-  projects.js
-  roadmap.js
-  rules.js
-  storage.js
-  tables.js
-  weekly.js
+index.html                     (Main HTML shell referencing src/main.jsx)
+package.json                   (Project dependencies & package scripts)
+vite.config.js                 (Vite bundle configurations)
+src/
+  main.jsx                     (React app entry point)
+  App.jsx                      (Main shell, page routes, navigation state)
+  index.css                    (Glassmorphic styles, cyberpunk gradients, responsive layout)
+  data/
+    seed.js                    (Core company, hackathon, and milestone seed lists)
+    dsaTopics.js               (Curated custom DSA Roadmap topics and problems)
+    striverSheet.js            (Striver's A2Z DSA Sheet problems and links)
+    mlResources.js             (5-phase ML roadmap resources and interview Q&As)
+  hooks/
+    useProgress.js             (Custom hook managing localStorage checklist states with event bus)
+  components/
+    dsa/
+      TopicCard.jsx            (Roadmap card displaying custom radial progress ring)
+      ProblemRow.jsx           (Line item for problems with checkbox triggers)
+      SourceBadge.jsx          (Multi-source platform badges)
+      DifficultyBar.jsx        (Horizontal segmentation bar matching difficulties)
+    ml/
+      ResourceCard.jsx         (Video/Reading/Course style layout cards)
+      PhaseTracker.jsx         (Metrics mapping phase percentage cards)
+  views/
+    DashboardView.jsx          (KPI center, this week's milestones, and the Curriculum Cockpit)
+    DsaView.jsx                (Curriculum tabs, lock gating, and nested topic views)
+    MLRoadmap.jsx              (ML interactive roadmap and accordion Q&A prep bank)
+    CompaniesView.jsx          (Target list of target firms and status updates)
+    ApplicationsView.jsx       (Backup pipeline export/import dashboard)
+    HackathonsView.jsx         (Competitions, timelines, and priority grids)
+    CertificationsView.jsx     (Learning paths and completion dates)
+    ProjectsView.jsx           (Interactive project list and details viewer)
+    YoutubeView.jsx            (Sequence-guided Watch List playlists)
+    RoadmapView.jsx            (30-week milestone checklist grids)
+    AnalyticsView.jsx          (Activity heatmaps and pipeline charts)
 ```
-
-File responsibilities:
-
-- **PLACEMENT_DASHBOARD_index.html**: App entry point with cutting-edge UI. Contains HTML shell, CSS (142KB of premium styling), seed data (40 companies, 17 hackathons, etc.), and all JavaScript logic. Loads Chart.js from CDN.
-- **data/seed-data.js**: Initial canonical dataset with companies, hackathons, certifications, roadmap weeks, projects.
-- **js/storage.js**: Implements persistence, export/import, state mutations.
-- **js/app.js**: Main app shell and router.
-- **js/*.js (views)**: Each module (dashboard, applications, roadmap, etc.) renders the respective view.
-- **components/modal.js**: Modal utility for forms and dialogs.
-- **components/heatmap.js**: Activity heatmap visualization.
-
----
-
----
 
 ## Working Principles
 
-High-level flow and app architecture:
+High-level application architecture and event flows:
 
-1. **Boot and seed**
-   - `PLACEMENT_DASHBOARD_index.html` loads all data embedded in the page
-   - Seed data contains 40 companies, 17 hackathons, 17 certifications, 6 projects, 30-week roadmap
-   - App reads localStorage using key `placementOS.v2`. If no saved state, clones seed data
-
-2. **App initialization**
-   - On page load, app initializes with navigation sidebar
-   - Detects current view from URL hash
-   - Renders appropriate view with stored state
-
-3. **Views and modules**
-   - Each view reads from state using `Store.get()` 
-   - State changes use `Store.mutate()` for persistence
-   - localStorage automatically saves all changes
-
-4. **UI Experience**
-   - Premium animations on all interactive elements
-   - Smooth 300ms transitions with cubic-bezier easing
-   - Hover effects with elevation and glow
-   - Modern modal scrolling with custom scrollbars
-
-5. **Persistence & events**
-   - All changes automatically saved to localStorage
-   - State is JSON-serialized for portability
-   - Export downloads full state, Import restores it
-
----
-
-## File structure
-
-Top-level layout (important files and folders):
+1. **Vite React Shell**: The app compiles modular React components using a unified design system of custom CSS properties (`--electric`, `--volt`, etc.) and typography.
+2. **State & Persistence**: State (companies, hackathons, certs) is managed via state updates in `App.jsx` persisting to `localStorage` under `placementOS.v2`.
+3. **Cross-Component Event Bus**: Solved checkboxes in the DSA Sheet and ML Roadmap use the custom `useProgress` hook. When toggled, they update `localStorage` and trigger global events (`storage_placement_os_*` and `progress_change_event`) to notify all hooks on active pages to re-render, ensuring metrics in the **Dashboard Curriculum Cockpit** update reactively in real-time.
+4. **Gated Progression**: In the Striver sheet, steps are locked sequentially. Complete 70% of problems in one step to unlock the next step in the curriculum.
 
 ---
 

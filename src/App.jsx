@@ -12,6 +12,8 @@ import ProjectsView from './views/ProjectsView';
 import YoutubeView from './views/YoutubeView';
 import RoadmapView from './views/RoadmapView';
 import AnalyticsView from './views/AnalyticsView';
+import MLRoadmap from './views/MLRoadmap';
+import DailyTasksView from './views/DailyTasksView';
 
 const STORAGE_KEY = 'placementOS.v2';
 
@@ -167,6 +169,8 @@ export default function App() {
         const merged = Object.assign({}, JSON.parse(JSON.stringify(SEED)), parsed);
         if (!merged.weekTasks) merged.weekTasks = {};
         if (!merged.activity) merged.activity = {};
+        if (!merged.internships) merged.internships = JSON.parse(JSON.stringify(SEED.internships || []));
+        if (!merged.retro) merged.retro = JSON.parse(JSON.stringify(SEED.retro || {}));
         return merged;
       }
     } catch (e) {
@@ -215,6 +219,14 @@ export default function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Force App reactivity when localStorage progress updates
+  const [, setProgressTick] = useState(0);
+  useEffect(() => {
+    const handleProgressChange = () => setProgressTick(tick => tick + 1);
+    window.addEventListener('progress_change_event', handleProgressChange);
+    return () => window.removeEventListener('progress_change_event', handleProgressChange);
+  }, []);
+
   const mutateState = (fn) => {
     setState(prev => {
       const clone = JSON.parse(JSON.stringify(prev));
@@ -227,11 +239,13 @@ export default function App() {
 
   const VIEWS = [
     { id: 'dashboard',     label: 'Dashboard',    icon: '⬡' },
+    { id: 'daily',         label: 'Daily Tasks',  icon: '📆' },
     { id: 'companies',     label: 'Companies',    icon: '◈' },
     { id: 'applications',  label: 'Applications', icon: '◇' },
     { id: 'hackathons',    label: 'Hackathons',   icon: '◆' },
     { id: 'certifications',label: 'Certs',        icon: '◉' },
     { id: 'dsa',           label: 'DSA',          icon: '⟨⟩' },
+    { id: 'ml',            label: 'ML Roadmap',   icon: '🧠' },
     { id: 'projects',      label: 'Projects',     icon: '▣' },
     { id: 'youtube',       label: 'YouTube',      icon: '📺' },
     { id: 'roadmap',       label: 'Roadmap',      icon: '▷' },
@@ -304,6 +318,15 @@ export default function App() {
             mutateState={mutateState}
             onNavigate={setView}
             todayContext={todayContext}
+            addToast={addToast}
+          />
+        );
+      case 'daily':
+        return (
+          <DailyTasksView
+            state={state}
+            mutateState={mutateState}
+            addToast={addToast}
           />
         );
       case 'companies':
@@ -345,6 +368,10 @@ export default function App() {
             mutateState={mutateState}
             addToast={addToast}
           />
+        );
+      case 'ml':
+        return (
+          <MLRoadmap />
         );
       case 'projects':
         return (
