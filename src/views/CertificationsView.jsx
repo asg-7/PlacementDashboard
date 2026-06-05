@@ -67,9 +67,10 @@ export default function CertificationsView({ state, mutateState, addToast }) {
     const status = form.status.value;
     const deadline = form.deadline.value;
     const notes = form.notes.value.trim();
+    const link = form.link ? form.link.value.trim() : '';
 
     mutateState(draft => {
-      const obj = { name, provider, duration, status, deadline, notes };
+      const obj = { name, provider, duration, status, deadline, notes, link };
       if (editingCert.id) {
         const c = draft.certifications.find(x => x.id === editingCert.id);
         if (c) {
@@ -138,7 +139,16 @@ export default function CertificationsView({ state, mutateState, addToast }) {
               ) : (
                 certs.map(c => (
                   <tr key={c.id}>
-                    <td><div style={{ fontWeight: 700, color: 'var(--t1)' }}>{c.name}</div></td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--t1)' }}>{c.name}</span>
+                        {c.link && (
+                          <a href={c.link} target="_blank" rel="noopener noreferrer" title="Go to course" style={{ textDecoration: 'none', color: 'var(--electric)', fontSize: '11px', fontWeight: 'bold' }}>
+                            ↗
+                          </a>
+                        )}
+                      </div>
+                    </td>
                     <td><div style={{ color: 'var(--t2)', fontSize: '12px' }}>{c.provider || ''}</div></td>
                     <td><div style={{ fontSize: '11px', color: 'var(--t3)', fontFamily: 'var(--mono)' }}>{c.duration || ''}</div></td>
                     <td>
@@ -165,7 +175,12 @@ export default function CertificationsView({ state, mutateState, addToast }) {
                     <td><div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--t2)' }}>{c.deadline || ''}</div></td>
                     <td><div style={{ fontSize: '11px', color: 'var(--t3)', maxWidth: '160px', lineHeight: '1.4' }}>{c.notes || '—'}</div></td>
                     <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
+                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                        {c.link && (
+                          <a href={c.link} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs" style={{ textDecoration: 'none', color: 'var(--volt)', borderColor: 'rgba(0,255,136,0.3)' }}>
+                            Go ↗
+                          </a>
+                        )}
                         <button className="btn btn-ghost btn-xs" onClick={() => setEditingCert(c)}>Edit</button>
                         <button className="btn btn-danger btn-xs" onClick={() => handleDelete(c.id)}>Del</button>
                       </div>
@@ -190,6 +205,10 @@ export default function CertificationsView({ state, mutateState, addToast }) {
               <div className="fg">
                 <label>Certification Name</label>
                 <input name="name" defaultValue={editingCert.name || ''} required />
+              </div>
+              <div className="fg">
+                <label>Course / Exam URL</label>
+                <input name="link" placeholder="https://..." defaultValue={editingCert.link || ''} />
               </div>
               <div className="fr">
                 <div className="fg">

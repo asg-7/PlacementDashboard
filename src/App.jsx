@@ -217,6 +217,16 @@ export default function App() {
           });
         }
 
+        // Automatic migration: update certifications with links
+        if (merged.certifications) {
+          merged.certifications.forEach(c => {
+            const seedC = SEED.certifications.find(x => x.id === c.id);
+            if (seedC && seedC.link && !c.link) {
+              c.link = seedC.link;
+            }
+          });
+        }
+
         // Automatic migration: add Goldman Sachs to companies list
         if (merged.companies) {
           const hasGoldmanComp = merged.companies.some(c => c.id === 'c_gs');
