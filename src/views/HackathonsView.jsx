@@ -7,7 +7,7 @@ export default function HackathonsView({ state, mutateState, addToast }) {
   const s = state;
   const regStatuses = ['not registered', 'registered', 'submitted'];
   const subStatuses = ['not started', 'in progress', 'submitted'];
-  const resStatuses = ['pending', 'won', 'lost'];
+  const resStatuses = ['pending', 'shortlisted', 'won', 'lost', 'rejected'];
 
   let hacks = s.hackathons || [];
   if (filter !== 'all') {
@@ -43,9 +43,10 @@ export default function HackathonsView({ state, mutateState, addToast }) {
     const deadline = form.deadline.value;
     const priority = form.priority.value;
     const notes = form.notes.value.trim();
+    const link = form.link.value.trim();
 
     mutateState(draft => {
-      const obj = { name, platform, deadline, priority, notes };
+      const obj = { name, platform, deadline, priority, notes, link };
       if (editingHack.id) {
         const h = draft.hackathons.find(x => x.id === editingHack.id);
         if (h) Object.assign(h, obj);
@@ -146,7 +147,12 @@ export default function HackathonsView({ state, mutateState, addToast }) {
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                {h.link && (
+                  <a href={h.link} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs" style={{ textDecoration: 'none', color: 'var(--electric)', borderColor: 'var(--electric)' }}>
+                    Register ↗
+                  </a>
+                )}
                 <button className="btn btn-ghost btn-xs" onClick={() => setEditingHack(h)}>Edit</button>
                 <button className="btn btn-danger btn-xs" onClick={() => handleDelete(h.id)}>Delete</button>
               </div>
@@ -178,13 +184,19 @@ export default function HackathonsView({ state, mutateState, addToast }) {
                   <input name="deadline" type="date" defaultValue={editingHack.deadline || ''} />
                 </div>
               </div>
-              <div className="fg">
-                <label>Priority</label>
-                <select name="priority" defaultValue={editingHack.priority || 'medium'}>
-                  {['high', 'medium', 'low'].map(p => (
-                    <option value={p} key={p}>{p}</option>
-                  ))}
-                </select>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="fg" style={{ flex: 1 }}>
+                  <label>Priority</label>
+                  <select name="priority" defaultValue={editingHack.priority || 'medium'}>
+                    {['high', 'medium', 'low'].map(p => (
+                      <option value={p} key={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="fg" style={{ flex: 2 }}>
+                  <label>Registration Link</label>
+                  <input name="link" placeholder="https://unstop.com/..." defaultValue={editingHack.link || ''} />
+                </div>
               </div>
               <div className="fg">
                 <label>Notes</label>

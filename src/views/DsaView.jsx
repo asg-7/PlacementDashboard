@@ -119,6 +119,7 @@ export default function DsaView({ state, mutateState, addToast }) {
     neetcode: '#00E5FF',
     hackerrank: '#2EC866',
     geeksforgeeks: '#2F8D46',
+    unstop: '#00E5FF',
     other: '#8899BB'
   };
 
@@ -128,6 +129,7 @@ export default function DsaView({ state, mutateState, addToast }) {
     neetcode: 'b-cyan',
     hackerrank: 'b-green',
     geeksforgeeks: 'b-purple',
+    unstop: 'b-cyan',
     other: 'b-gray'
   };
 
@@ -155,7 +157,8 @@ export default function DsaView({ state, mutateState, addToast }) {
       codeforces: 'Codeforces',
       neetcode: 'NeetCode',
       hackerrank: 'HackerRank',
-      geeksforgeeks: 'GeeksforGeeks'
+      geeksforgeeks: 'GeeksforGeeks',
+      unstop: 'Unstop'
     };
     const platformName = nameMap[key];
 
@@ -738,10 +741,10 @@ export default function DsaView({ state, mutateState, addToast }) {
             </div>
             {syncPanelOpen && (
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-                <div className="g5" style={{ gap: '12px' }}>
-                  {['leetcode', 'codeforces', 'neetcode', 'hackerrank', 'geeksforgeeks'].map(key => {
+                <div className="g5" style={{ gap: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                  {['leetcode', 'codeforces', 'neetcode', 'hackerrank', 'geeksforgeeks', 'unstop'].map(key => {
                     const acc = s.syncAccounts?.[key] || { handle: '', status: 'Disconnected', lastSynced: '' };
-                    const nameMap = { leetcode: 'LeetCode', codeforces: 'Codeforces', neetcode: 'NeetCode', hackerrank: 'HackerRank', geeksforgeeks: 'GeeksforGeeks' };
+                    const nameMap = { leetcode: 'LeetCode', codeforces: 'Codeforces', neetcode: 'NeetCode', hackerrank: 'HackerRank', geeksforgeeks: 'GeeksforGeeks', unstop: 'Unstop' };
                     const badgeClass = acc.status === 'Connected' ? 'b-green' : 'b-gray';
                     return (
                       <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--rs)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }} key={key}>

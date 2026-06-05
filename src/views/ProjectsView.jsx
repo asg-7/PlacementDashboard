@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 
-export default function ProjectsView({ state, mutateState, addToast }) {
+export default function ProjectsView({ state, mutateState, addToast, resetProjectsOnly }) {
   const [editingProj, setEditingProj] = useState(null); // null if closed, {} for new, or project object for edit
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'completed', 'in progress', 'not started'
 
   const s = state;
   const statusColors = {
@@ -11,6 +12,19 @@ export default function ProjectsView({ state, mutateState, addToast }) {
     'paused': 'var(--amber)'
   };
   const checkpoints = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
+  const hasOldProjects = s.projects && s.projects.some(p => 
+    p.name.includes('LangChain RAG Chatbot') || 
+    p.name.includes('Time Series Forecasting') || 
+    p.name.includes('Tata Steel ML Work') || 
+    p.name.includes('Salary Predictor – Streamlit App') ||
+    p.name.includes('Salary Predictor - Streamlit App')
+  );
+
+  const filteredProjects = s.projects.filter(p => {
+    if (statusFilter === 'all') return true;
+    return p.status === statusFilter;
+  });
 
   const handleSetProgress = (id, pct) => {
     mutateState(draft => {
@@ -94,13 +108,83 @@ export default function ProjectsView({ state, mutateState, addToast }) {
         <button className="btn btn-primary" onClick={() => setEditingProj({})}>+ Add Project</button>
       </div>
 
+      {hasOldProjects && (
+        <div style={{ 
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)', 
+          border: '1px dashed var(--electric)', 
+          borderRadius: '12px',
+          padding: '16px 20px', 
+          marginBottom: '24px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          gap: '16px',
+          animation: 'fade-in 0.3s ease-out'
+        }}>
+          <div>
+            <div style={{ fontWeight: 700, color: 'var(--t1)', fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🚀</span> Sync GitHub Portfolio Projects
+            </div>
+            <div style={{ color: 'var(--t2)', fontSize: '12.5px', lineHeight: '1.4' }}>
+              Your dashboard is currently showing outdated placeholder projects. Click <strong>Sync Now</strong> to load your actual projects from GitHub (ResumeIQ, EV Battery Diagnostics, Machine Delay Breakdown System, etc.) with completed statuses.
+            </div>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={resetProjectsOnly} style={{ whiteSpace: 'nowrap' }}>
+            Sync Now
+          </button>
+        </div>
+      )}
+
+      {/* Status Filter Tab Bar */}
+      <div style={{ 
+        display: 'flex', 
+        flexWrap: 'wrap',
+        gap: '8px', 
+        marginBottom: '20px', 
+        borderBottom: '1px solid rgba(255,255,255,0.08)', 
+        paddingBottom: '12px',
+        alignItems: 'center'
+      }}>
+        <span style={{ fontSize: '10px', color: 'var(--t3)', marginRight: '8px', textTransform: 'uppercase', letterSpacing: '0.8px', fontFamily: 'var(--mono)' }}>Filter:</span>
+        {['all', 'completed', 'in progress', 'not started'].map(status => {
+          const count = status === 'all' 
+            ? s.projects.length 
+            : s.projects.filter(p => p.status === status).length;
+          return (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              style={{
+                background: statusFilter === status ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                border: '1px solid',
+                borderColor: statusFilter === status ? 'var(--electric)' : 'rgba(255,255,255,0.08)',
+                color: statusFilter === status ? 'var(--electric)' : 'var(--t3)',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '11px',
+                fontWeight: statusFilter === status ? '700' : '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}
+              className="filter-btn"
+            >
+              {status} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       <div className="g2">
-        {s.projects.length === 0 ? (
+        {filteredProjects.length === 0 ? (
           <div className="card" style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px', color: 'var(--t3)' }}>
-            No projects logged yet. Click "+ Add Project" to record your work!
+            {statusFilter === 'all' 
+              ? 'No projects logged yet. Click "+ Add Project" to record your work!' 
+              : `No projects marked as "${statusFilter}" yet.`}
           </div>
         ) : (
-          s.projects.map(p => (
+          filteredProjects.map(p => (
             <div className="proj-card" key={p.id}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                 <div className="proj-name">{p.name}</div>

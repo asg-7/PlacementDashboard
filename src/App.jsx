@@ -171,6 +171,70 @@ export default function App() {
         if (!merged.activity) merged.activity = {};
         if (!merged.internships) merged.internships = JSON.parse(JSON.stringify(SEED.internships || []));
         if (!merged.retro) merged.retro = JSON.parse(JSON.stringify(SEED.retro || {}));
+        
+        // Automatic migration: update to the user's actual projects if "ResumeIQ" is not in the projects list or old placeholder projects are found
+        const hasResumeIQ = merged.projects && merged.projects.some(p => p.githubLink && p.githubLink.includes('resumeiq'));
+        const hasOldPlaceholder = merged.projects && merged.projects.some(p => p.name.includes('LangChain RAG Chatbot') || p.name.includes('Time Series Forecasting') || p.name.includes('Tata Steel ML Work') || p.name.includes('Salary Predictor – Streamlit App') || p.name.includes('Salary Predictor - Streamlit App'));
+        if (!hasResumeIQ || hasOldPlaceholder) {
+          merged.projects = JSON.parse(JSON.stringify(SEED.projects));
+        }
+        
+        // Automatic migration: connect HackerRank and Unstop profiles
+        if (merged.syncAccounts) {
+          if (!merged.syncAccounts.hackerrank || merged.syncAccounts.hackerrank.handle !== 'anubhav_sengupt1') {
+            merged.syncAccounts.hackerrank = { handle: 'anubhav_sengupt1', status: 'Connected', lastSynced: '2026-06-05 09:30' };
+          }
+          if (!merged.syncAccounts.unstop || merged.syncAccounts.unstop.handle !== 'anubhsen98694') {
+            merged.syncAccounts.unstop = { handle: 'anubhsen98694', status: 'Connected', lastSynced: '2026-06-05 09:30' };
+          }
+        }
+
+        // Automatic migration: update hackathons with links and Goldman Sachs AI Hackathon
+        if (merged.hackathons) {
+          const hasGoldman = merged.hackathons.some(h => h.id === 'h_gs');
+          if (!hasGoldman) {
+            merged.hackathons.unshift({ 
+              id: 'h_gs', 
+              name: 'Goldman Sachs AI Hackathon', 
+              platform: 'Unstop', 
+              deadline: '2026-06-05', 
+              priority: 'high',   
+              reg: 'registered', 
+              submission: 'submitted', 
+              result: 'shortlisted', 
+              hiringChallenge: true,  
+              teamSize: '1-3', 
+              outcome: 'Shortlisted for Interview', 
+              notes: 'Shortlisted! Technical interview is ongoing right now.', 
+              link: 'https://unstop.com' 
+            });
+          }
+          merged.hackathons.forEach(h => {
+            const seedH = SEED.hackathons.find(x => x.id === h.id);
+            if (seedH && seedH.link && !h.link) {
+              h.link = seedH.link;
+            }
+          });
+        }
+
+        // Automatic migration: add Goldman Sachs to companies list
+        if (merged.companies) {
+          const hasGoldmanComp = merged.companies.some(c => c.id === 'c_gs');
+          if (!hasGoldmanComp) {
+            merged.companies.push({ 
+              id: 'c_gs', 
+              companyName: 'Goldman Sachs', 
+              role: 'AI / Software Engineering Intern', 
+              ctc: 'Rs.20-25 LPA (equivalent)', 
+              window: 'June 2026',        
+              status: 'interview', 
+              cgpaCriteria: 6.0, 
+              hiringChallenge: true,  
+              notes: 'Interviewing via Goldman Sachs AI Hackathon shortlist.' 
+            });
+          }
+        }
+        
         return merged;
       }
     } catch (e) {
@@ -308,6 +372,13 @@ export default function App() {
     addToast('Data reset to defaults');
   };
 
+  const handleResetProjectsOnly = () => {
+    mutateState(draft => {
+      draft.projects = JSON.parse(JSON.stringify(SEED.projects));
+    });
+    addToast('Projects synced with GitHub portfolio ✓');
+  };
+
   // Render correct subview
   const renderViewContent = () => {
     switch (view) {
@@ -379,6 +450,7 @@ export default function App() {
             state={state}
             mutateState={mutateState}
             addToast={addToast}
+            resetProjectsOnly={handleResetProjectsOnly}
           />
         );
       case 'youtube':
