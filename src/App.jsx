@@ -246,6 +246,24 @@ export default function App() {
             });
           }
         }
+        // Automatic migration: update YouTube resources with the new 14 channels
+        if (merged.youtubeResources) {
+          const hasUpdates = merged.youtubeResources.some(r => r.status !== 'not started');
+          if (!hasUpdates) {
+            // User hasn't started any videos, safe to overwrite with the clean 14-channel seed list
+            merged.youtubeResources = JSON.parse(JSON.stringify(SEED.youtubeResources));
+          } else {
+            // User has progress, merge missing channels to avoid losing progress
+            const existingChannels = new Set(merged.youtubeResources.map(r => r.channel.toLowerCase()));
+            const missing = SEED.youtubeResources.filter(r => !existingChannels.has(r.channel.toLowerCase()));
+            if (missing.length > 0) {
+              merged.youtubeResources = [...merged.youtubeResources, ...missing];
+              merged.youtubeResources.forEach((r, idx) => {
+                r.sequence = idx + 1;
+              });
+            }
+          }
+        }
         
         return merged;
       }

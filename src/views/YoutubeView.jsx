@@ -47,7 +47,8 @@ export default function YoutubeView({ state, mutateState, addToast }) {
     'Web Dev': 'b-green',
     'Python': 'b-cyan',
     'Automation': 'b-purple',
-    'Placement Strategy': 'b-gray'
+    'Placement Strategy': 'b-gray',
+    'CS Core': 'b-blue'
   };
 
   const handleUpdateStatus = (id, newStatus) => {
