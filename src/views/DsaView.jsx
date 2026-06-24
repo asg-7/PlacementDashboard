@@ -4,6 +4,7 @@ import { dsaTopicsData } from '../data/dsaTopics';
 import { striverTopics } from '../data/striverSheet';
 import { neetcodeTopics } from '../data/neetcode150';
 import { DSA_TOPICS } from '../data/seed';
+import { dsaPatternsData } from '../data/dsaPatterns';
 
 // Reusable Components
 import TopicCard from '../components/dsa/TopicCard';
@@ -13,7 +14,12 @@ import DifficultyBar from '../components/dsa/DifficultyBar';
 
 export default function DsaView({ state, mutateState, addToast }) {
   // Tab State
-  const [tab, setTab] = useState('roadmap'); // 'roadmap', 'striver', 'neetcode', 'mock', 'aptitude', 'kits'
+  const [tab, setTab] = useState('roadmap'); // 'roadmap', 'striver', 'neetcode', 'mock', 'aptitude', 'kits', 'mindmap'
+
+  // Mindmap expansion and drawer states
+  const [expandedNodes, setExpandedNodes] = useState(new Set());
+  const [selectedLeafPattern, setSelectedLeafPattern] = useState(null);
+  const [parentBreadcrumbs, setParentBreadcrumbs] = useState([]);
 
   // Source Filter Chips State
   const [activeSources, setActiveSources] = useState(new Set(['leetcode', 'neetcode', 'striver', 'geeksforgeeks', 'hackerrank']));
@@ -95,6 +101,177 @@ export default function DsaView({ state, mutateState, addToast }) {
     if (plat === 'striver' || plat === 'tuf') return activeSources.has('striver');
     return activeSources.has('leetcode') || activeSources.has(plat);
   };
+
+  // Pattern Mindmap Helpers
+  const isProblemSolved = (prob) => {
+    if (prob.id) {
+      if (prob.id.startsWith('nc-')) return neetcodeProgress.has(prob.id);
+      if (prob.id.startsWith('s-')) return striverProgress.has(prob.id);
+      if (prob.id.startsWith('d-') || prob.id.startsWith('d1') || prob.id.startsWith('d2') || prob.id.startsWith('d3')) return dsaRoadmapProgress.has(prob.id);
+    }
+    const foundInKits = (state.dsaProblems || []).some(
+      x => x.problem.toLowerCase() === prob.title.toLowerCase() && x.status === 'solved'
+    );
+    if (foundInKits) return true;
+    return dsaRoadmapProgress.has(prob.id || prob.title);
+  };
+
+  const togglePatternProblem = (prob) => {
+    if (prob.id) {
+      if (prob.id.startsWith('nc-')) toggleNeetcodeProblem(prob.id);
+      else if (prob.id.startsWith('s-')) toggleStriverProblem(prob.id);
+      else toggleRoadmapProblem(prob.id);
+    } else {
+      const kitProb = (state.dsaProblems || []).find(x => x.problem.toLowerCase() === prob.title.toLowerCase());
+      if (kitProb) {
+        mutateState(draft => {
+          const p = draft.dsaProblems.find(x => x.id === kitProb.id);
+          if (p) p.status = p.status === 'solved' ? 'attempted' : 'solved';
+        });
+      } else {
+        toggleRoadmapProblem(prob.title);
+      }
+    }
+    addToast(`Updated status for: ${prob.title}`);
+  };
+
+  const getPatternStats = (node) => {
+    let solved = 0;
+    let total = 0;
+    
+    const recurse = (n) => {
+      if (n.problems) {
+        n.problems.forEach(p => {
+          total++;
+          if (isProblemSolved(p)) solved++;
+        });
+      }
+      if (n.children) {
+        n.children.forEach(c => recurse(c));
+      }
+    };
+    
+    recurse(node);
+    return { solved, total };
+  };
+
+  const getBadgeColor = (solved, total) => {
+    if (total === 0 || solved === 0) return '#6B7280';
+    if (solved === total) return '#22C55E';
+    return '#F59E0B';
+  };
+
+  const toggleNode = (nodeId) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  };
+
+  const handleScrollToCategory = (catId) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      next.add(catId);
+      return next;
+    });
+    setTimeout(() => {
+      document.getElementById(`cat-card-${catId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
+  const handleLeafClick = (leafNode, breadcrumbs) => {
+    setSelectedLeafPattern(leafNode);
+    setParentBreadcrumbs(breadcrumbs);
+  };
+
+  const renderNode = (node, depth = 0, breadcrumbs = []) => {
+    const nodeBreadcrumbs = [...breadcrumbs, node.name];
+    const isLeaf = !node.children;
+    const { solved, total } = getPatternStats(node);
+    const badgeColor = getBadgeColor(solved, total);
+    const isNodeExpanded = expandedNodes.has(node.id);
+    
+    if (isLeaf) {
+      return (
+        <div 
+          key={node.id} 
+          onClick={() => handleLeafClick(node, nodeBreadcrumbs)}
+          className="mindmap-leaf-node"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            paddingLeft: `${24 + depth * 16}px`,
+            borderBottom: '1px solid var(--border3)',
+            cursor: 'pointer',
+            transition: 'background 0.2s'
+          }}
+        >
+          <span style={{ fontSize: '13px', color: 'var(--t2)' }}>
+            {depth > 0 ? '├─ ' : ''}{node.name}
+          </span>
+          <span 
+            className="badge" 
+            style={{ 
+              backgroundColor: `${badgeColor}15`, 
+              color: badgeColor, 
+              border: `1px solid ${badgeColor}30`, 
+              fontSize: '11px',
+              fontFamily: 'var(--mono)',
+              padding: '2px 8px'
+            }}
+          >
+            {solved}/{total} solved
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div key={node.id} style={{ display: 'flex', flexDirection: 'column' }}>
+        <div 
+          onClick={() => toggleNode(node.id)}
+          className="mindmap-branch-node"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            paddingLeft: `${24 + depth * 16}px`,
+            borderBottom: '1px solid var(--border3)',
+            cursor: 'pointer',
+            background: 'rgba(255,255,255,0.01)'
+          }}
+        >
+          <span style={{ fontSize: '13px', color: 'var(--t1)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {depth > 0 ? '├─ ' : ''}{node.name}
+            <span style={{ fontSize: '10px', color: 'var(--t3)' }}>{isNodeExpanded ? '▼' : '▶'}</span>
+          </span>
+          <span 
+            className="badge" 
+            style={{ 
+              backgroundColor: `${badgeColor}15`, 
+              color: badgeColor, 
+              border: `1px solid ${badgeColor}30`, 
+              fontSize: '11px',
+              fontFamily: 'var(--mono)'
+            }}
+          >
+            {solved}/{total}
+          </span>
+        </div>
+        {isNodeExpanded && (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {node.children.map(child => renderNode(child, depth + 1, nodeBreadcrumbs))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
 
   // Company Kits (Existing Table) Filter logic
   let filteredKits = probs.filter(matchesSourceFilter);
@@ -660,99 +837,119 @@ export default function DsaView({ state, mutateState, addToast }) {
   return (
     <div style={{ animation: 'fade-in 0.4s ease-out' }}>
       {/* PAGE HEADER */}
-      <div className="ph" style={{ marginBottom: '20px' }}>
+      <div className="ph" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div className="ph-eyebrow">DSA Preparation</div>
           <div className="ph-title">Data Structures & Algorithms</div>
           <div className="ph-sub">Solve curated sheets, track progress, and sync verified submissions</div>
         </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className={`btn ${tab !== 'mindmap' ? 'btn-primary' : 'btn-ghost'}`} 
+            onClick={() => tab === 'mindmap' && setTab('roadmap')}
+            style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            🗂️ Problem List
+          </button>
+          <button 
+            className={`btn ${tab === 'mindmap' ? 'btn-primary' : 'btn-ghost'}`} 
+            onClick={() => setTab('mindmap')}
+            style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            🧠 Pattern Map
+          </button>
+        </div>
       </div>
 
       {/* TOP TAB NAVIGATION BAR */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setTab('roadmap')}
-          className={`ntab ${tab === 'roadmap' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
-        >
-          Structured Roadmap
-        </button>
-        <button
-          onClick={() => setTab('striver')}
-          className={`ntab ${tab === 'striver' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
-        >
-          Striver A2Z Sheet
-        </button>
-        <button
-          onClick={() => setTab('neetcode')}
-          className={`ntab ${tab === 'neetcode' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
-        >
-          🚀 NeetCode 150
-        </button>
-        <button
-          onClick={() => setTab('mock')}
-          className={`ntab ${tab === 'mock' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
-        >
-          ⏱️ Mock Interview
-        </button>
-        <button
-          onClick={() => setTab('aptitude')}
-          className={`ntab ${tab === 'aptitude' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
-        >
-          🧠 OA/Aptitude
-        </button>
-        <button
-          onClick={() => setTab('kits')}
-          className={`ntab ${tab === 'kits' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
-        >
-          Company Kits
-        </button>
-      </div>
-
-      {/* SOURCE FILTER CHIPS ROW */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '20px', background: 'var(--bg2)', padding: '10px 14px', borderRadius: 'var(--rs)', border: '1px solid var(--border)' }}>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', marginRight: '6px' }}>
-          Filters:
-        </span>
-        {[
-          { key: 'leetcode', label: 'LeetCode', color: '#FFA116' },
-          { key: 'neetcode', label: 'NeetCode', color: '#00E5FF' },
-          { key: 'striver', label: 'Striver TUF', color: '#B04AFF' },
-          { key: 'geeksforgeeks', label: 'GFG', color: '#2F8D46' },
-          { key: 'hackerrank', label: 'HackerRank', color: '#2EC866' }
-        ].map(chip => {
-          const isActive = activeSources.has(chip.key);
-          return (
+      {tab !== 'mindmap' && (
+        <>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '20px', flexWrap: 'wrap' }}>
             <button
-              key={chip.key}
-              onClick={() => toggleSourceFilter(chip.key)}
-              style={{
-                background: isActive ? 'var(--surface)' : 'transparent',
-                color: isActive ? 'var(--t1)' : 'var(--t3)',
-                border: isActive ? `1.5px solid ${chip.color}` : '1.5px solid var(--border)',
-                borderRadius: '20px',
-                padding: '4px 12px',
-                fontSize: '10px',
-                fontWeight: 700,
-                fontFamily: 'var(--mono)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                transition: 'all 0.15s'
-              }}
+              onClick={() => setTab('roadmap')}
+              className={`ntab ${tab === 'roadmap' ? 'active' : ''}`}
+              style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
             >
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: chip.color }}></span>
-              {chip.label}
+              Structured Roadmap
             </button>
-          );
-        })}
-      </div>
+            <button
+              onClick={() => setTab('striver')}
+              className={`ntab ${tab === 'striver' ? 'active' : ''}`}
+              style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+            >
+              Striver A2Z Sheet
+            </button>
+            <button
+              onClick={() => setTab('neetcode')}
+              className={`ntab ${tab === 'neetcode' ? 'active' : ''}`}
+              style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+            >
+              🚀 NeetCode 150
+            </button>
+            <button
+              onClick={() => setTab('mock')}
+              className={`ntab ${tab === 'mock' ? 'active' : ''}`}
+              style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+            >
+              ⏱️ Mock Interview
+            </button>
+            <button
+              onClick={() => setTab('aptitude')}
+              className={`ntab ${tab === 'aptitude' ? 'active' : ''}`}
+              style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+            >
+              🧠 OA/Aptitude
+            </button>
+            <button
+              onClick={() => setTab('kits')}
+              className={`ntab ${tab === 'kits' ? 'active' : ''}`}
+              style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+            >
+              Company Kits
+            </button>
+          </div>
+
+          {/* SOURCE FILTER CHIPS ROW */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', marginBottom: '20px', background: 'var(--bg2)', padding: '10px 14px', borderRadius: 'var(--rs)', border: '1px solid var(--border)' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', marginRight: '6px' }}>
+              Filters:
+            </span>
+            {[
+              { key: 'leetcode', label: 'LeetCode', color: '#FFA116' },
+              { key: 'neetcode', label: 'NeetCode', color: '#00E5FF' },
+              { key: 'striver', label: 'Striver TUF', color: '#B04AFF' },
+              { key: 'geeksforgeeks', label: 'GFG', color: '#2F8D46' },
+              { key: 'hackerrank', label: 'HackerRank', color: '#2EC866' }
+            ].map(chip => {
+              const isActive = activeSources.has(chip.key);
+              return (
+                <button
+                  key={chip.key}
+                  onClick={() => toggleSourceFilter(chip.key)}
+                  style={{
+                    background: isActive ? 'var(--surface)' : 'transparent',
+                    color: isActive ? 'var(--t1)' : 'var(--t3)',
+                    border: isActive ? `1.5px solid ${chip.color}` : '1.5px solid var(--border)',
+                    borderRadius: '20px',
+                    padding: '4px 12px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    fontFamily: 'var(--mono)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: chip.color }}></span>
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* TAB 1: ROADMAP (GRID OF TOPIC CARDS WITH RADIAL PROGRESS) */}
       {tab === 'roadmap' && (
@@ -935,6 +1132,225 @@ export default function DsaView({ state, mutateState, addToast }) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* TAB: PATTERN MINDMAP */}
+      {tab === 'mindmap' && (
+        <div style={{ position: 'relative', animation: 'fade-in 0.4s ease-out' }}>
+          {/* Summary Bar */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '10px', 
+            overflowX: 'auto', 
+            paddingBottom: '12px', 
+            marginBottom: '20px',
+            scrollbarWidth: 'thin'
+          }}>
+            {dsaPatternsData.map(cat => {
+              const { solved, total } = getPatternStats(cat);
+              const pct = total > 0 ? Math.round((solved / total) * 100) : 0;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => handleScrollToCategory(cat.id)}
+                  style={{
+                    flexShrink: 0,
+                    background: `${cat.color}15`,
+                    color: cat.color,
+                    border: `1px solid ${cat.color}30`,
+                    padding: '8px 14px',
+                    borderRadius: '20px',
+                    fontSize: '11px',
+                    fontFamily: 'var(--mono)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '4px',
+                    minWidth: '100px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = `${cat.color}25`; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = `${cat.color}15`; }}
+                >
+                  <span style={{ fontWeight: 700 }}>{cat.name}</span>
+                  <span style={{ fontSize: '10px', opacity: 0.85 }}>{solved}/{total} ({pct}%)</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Cards Grid */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {dsaPatternsData.map(cat => {
+              const isExpanded = expandedNodes.has(cat.id);
+              const { solved, total } = getPatternStats(cat);
+              const pct = total > 0 ? Math.round((solved / total) * 100) : 0;
+              
+              return (
+                <div 
+                  key={cat.id} 
+                  id={`cat-card-${cat.id}`}
+                  className="card"
+                  style={{ 
+                    borderLeft: `4px solid ${cat.color}`,
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <div 
+                    onClick={() => toggleNode(cat.id)}
+                    style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '16px', color: cat.color, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {cat.name} 
+                        <span style={{ fontSize: '10px', color: 'var(--t3)' }}>{isExpanded ? '▼' : '▶'}</span>
+                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                        <div style={{ width: '80px', height: '3px', background: 'var(--border2)', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: cat.color }}></div>
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--t3)', fontFamily: 'var(--mono)' }}>{pct}% complete</span>
+                      </div>
+                    </div>
+                    
+                    <span 
+                      className="badge"
+                      style={{ 
+                        backgroundColor: `${cat.color}15`, 
+                        color: cat.color,
+                        border: `1px solid ${cat.color}30`
+                      }}
+                    >
+                      {solved}/{total} solved
+                    </span>
+                  </div>
+
+                  {isExpanded && (
+                    <div style={{ 
+                      borderTop: '1px solid var(--border)', 
+                      paddingTop: '10px',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      {cat.children && cat.children.map(child => renderNode(child, 0, [cat.name]))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Drawer Overlay for Detail Drawer */}
+          {selectedLeafPattern && (
+            <div 
+              style={{
+                position: 'fixed',
+                top: 0, right: 0, bottom: 0,
+                width: '100%', maxWidth: '450px',
+                background: 'var(--bg1)',
+                borderLeft: '1px solid var(--border)',
+                boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+                zIndex: 1000,
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                animation: 'slide-in 0.3s ease-out'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--t3)', textTransform: 'uppercase' }}>
+                    {parentBreadcrumbs.join(' > ')}
+                  </div>
+                  <h3 style={{ margin: '4px 0 0 0', fontSize: '18px', color: 'var(--electric)' }}>
+                    {selectedLeafPattern.name}
+                  </h3>
+                </div>
+                <button 
+                  className="btn btn-ghost" 
+                  onClick={() => setSelectedLeafPattern(null)}
+                  style={{ fontSize: '20px', padding: '4px 8px', minWidth: 'auto', height: 'auto', lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--t2)', fontFamily: 'var(--mono)' }}>
+                    Representative Problems
+                  </h4>
+                  {(!selectedLeafPattern.problems || selectedLeafPattern.problems.length === 0) ? (
+                    <div className="note-box" style={{ fontSize: '12px' }}>
+                      No predefined problems logged for this sub-pattern yet.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedLeafPattern.problems.map(prob => {
+                        const solved = isProblemSolved(prob);
+                        return (
+                          <div 
+                            key={prob.id || prob.title}
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              background: 'var(--bg2)',
+                              padding: '10px 14px',
+                              borderRadius: 'var(--rs)',
+                              border: '1px solid var(--border)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, marginRight: '10px' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={solved} 
+                                onChange={() => togglePatternProblem(prob)}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                              />
+                              <span style={{ fontSize: '13px', color: solved ? 'var(--t3)' : 'var(--t1)', textDecoration: solved ? 'line-through' : 'none' }}>
+                                {prob.title}
+                              </span>
+                            </div>
+                            {prob.link && (
+                              <a 
+                                href={prob.link} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="btn btn-ghost btn-xs"
+                                style={{ textDecoration: 'none', padding: '4px 8px' }}
+                              >
+                                Solve ↗
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setSelectedLeafPattern(null)}
+                style={{ width: '100%' }}
+              >
+                Close Drawer
+              </button>
+            </div>
+          )}
         </div>
       )}
 
