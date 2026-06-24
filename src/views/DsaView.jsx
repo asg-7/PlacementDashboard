@@ -11,6 +11,7 @@ import TopicCard from '../components/dsa/TopicCard';
 import ProblemRow from '../components/dsa/ProblemRow';
 import SourceBadge from '../components/dsa/SourceBadge';
 import DifficultyBar from '../components/dsa/DifficultyBar';
+import DsaMindmap from '../components/dsa/DsaMindmap';
 
 export default function DsaView({ state, mutateState, addToast }) {
   // Tab State
@@ -1138,117 +1139,19 @@ export default function DsaView({ state, mutateState, addToast }) {
       {/* TAB: PATTERN MINDMAP */}
       {tab === 'mindmap' && (
         <div style={{ position: 'relative', animation: 'fade-in 0.4s ease-out' }}>
-          {/* Summary Bar */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '10px', 
-            overflowX: 'auto', 
-            paddingBottom: '12px', 
-            marginBottom: '20px',
-            scrollbarWidth: 'thin'
-          }}>
-            {dsaPatternsData.map(cat => {
-              const { solved, total } = getPatternStats(cat);
-              const pct = total > 0 ? Math.round((solved / total) * 100) : 0;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleScrollToCategory(cat.id)}
-                  style={{
-                    flexShrink: 0,
-                    background: `${cat.color}15`,
-                    color: cat.color,
-                    border: `1px solid ${cat.color}30`,
-                    padding: '8px 14px',
-                    borderRadius: '20px',
-                    fontSize: '11px',
-                    fontFamily: 'var(--mono)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '4px',
-                    minWidth: '100px',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = `${cat.color}25`; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = `${cat.color}15`; }}
-                >
-                  <span style={{ fontWeight: 700 }}>{cat.name}</span>
-                  <span style={{ fontSize: '10px', opacity: 0.85 }}>{solved}/{total} ({pct}%)</span>
-                </button>
-              );
-            })}
+          <div style={{ marginBottom: '24px' }}>
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', color: 'var(--electric)' }}>DSA Patterns Mindmap</h2>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--t2)' }}>
+              Explore patterns interactively. Click on a pattern node to see representative problems and mark them as solved.
+            </p>
           </div>
 
-          {/* Cards Grid */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {dsaPatternsData.map(cat => {
-              const isExpanded = expandedNodes.has(cat.id);
-              const { solved, total } = getPatternStats(cat);
-              const pct = total > 0 ? Math.round((solved / total) * 100) : 0;
-              
-              return (
-                <div 
-                  key={cat.id} 
-                  id={`cat-card-${cat.id}`}
-                  className="card"
-                  style={{ 
-                    borderLeft: `4px solid ${cat.color}`,
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px'
-                  }}
-                >
-                  <div 
-                    onClick={() => toggleNode(cat.id)}
-                    style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '16px', color: cat.color, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {cat.name} 
-                        <span style={{ fontSize: '10px', color: 'var(--t3)' }}>{isExpanded ? '▼' : '▶'}</span>
-                      </h3>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                        <div style={{ width: '80px', height: '3px', background: 'var(--border2)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: cat.color }}></div>
-                        </div>
-                        <span style={{ fontSize: '11px', color: 'var(--t3)', fontFamily: 'var(--mono)' }}>{pct}% complete</span>
-                      </div>
-                    </div>
-                    
-                    <span 
-                      className="badge"
-                      style={{ 
-                        backgroundColor: `${cat.color}15`, 
-                        color: cat.color,
-                        border: `1px solid ${cat.color}30`
-                      }}
-                    >
-                      {solved}/{total} solved
-                    </span>
-                  </div>
-
-                  {isExpanded && (
-                    <div style={{ 
-                      borderTop: '1px solid var(--border)', 
-                      paddingTop: '10px',
-                      display: 'flex',
-                      flexDirection: 'column'
-                    }}>
-                      {cat.children && cat.children.map(child => renderNode(child, 0, [cat.name]))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <DsaMindmap 
+            dsaPatternsData={dsaPatternsData}
+            isProblemSolved={isProblemSolved}
+            togglePatternProblem={togglePatternProblem}
+            onLeafClick={handleLeafClick}
+          />
 
           {/* Drawer Overlay for Detail Drawer */}
           {selectedLeafPattern && (

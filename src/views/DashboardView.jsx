@@ -3,6 +3,8 @@ import { useProgress } from '../hooks/useProgress';
 import { dsaTopicsData } from '../data/dsaTopics';
 import { striverTopics } from '../data/striverSheet';
 import { mlPhasesData } from '../data/mlResources';
+import { dsaPatternsData } from '../data/dsaPatterns';
+import DsaMindmap from '../components/dsa/DsaMindmap';
 
 export default function DashboardView({ state, mutateState, onNavigate, todayContext, addToast }) {
   const s = state;
@@ -27,12 +29,52 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
   const certProgress = certTotal ? s.certifications.reduce((sum, c) => sum + (c.progress || 0), 0) / certTotal : 0;
 
   // Curriculum Metrics
-  const { count: dsaRoadmapCount } = useProgress('dsa_roadmap');
-  const { count: striverCount } = useProgress('striver_a2z');
-  const { count: neetcodeCount } = useProgress('neetcode_150');
+  const { count: dsaRoadmapCount, done: dsaRoadmapProgress, toggle: toggleRoadmapProblem } = useProgress('dsa_roadmap');
+  const { count: striverCount, done: striverProgress, toggle: toggleStriverProblem } = useProgress('striver_a2z');
+  const { count: neetcodeCount, done: neetcodeProgress, toggle: toggleNeetcodeProblem } = useProgress('neetcode_150');
   const { count: systemDesignCount } = useProgress('system_design');
   const { count: mlCount } = useProgress('ml_roadmap');
   const { count: gsPuzzlesCount } = useProgress('gs_puzzles');
+
+  const [selectedLeafPattern, setSelectedLeafPattern] = useState(null);
+  const [parentBreadcrumbs, setParentBreadcrumbs] = useState([]);
+
+  const isProblemSolved = (prob) => {
+    if (prob.id) {
+      if (prob.id.startsWith('nc-')) return neetcodeProgress.has(prob.id);
+      if (prob.id.startsWith('s-')) return striverProgress.has(prob.id);
+      if (prob.id.startsWith('d-') || prob.id.startsWith('d1') || prob.id.startsWith('d2') || prob.id.startsWith('d3')) return dsaRoadmapProgress.has(prob.id);
+    }
+    const foundInKits = (s.dsaProblems || []).some(
+      x => x.problem.toLowerCase() === prob.title.toLowerCase() && x.status === 'solved'
+    );
+    if (foundInKits) return true;
+    return dsaRoadmapProgress.has(prob.id || prob.title);
+  };
+
+  const togglePatternProblem = (prob) => {
+    if (prob.id) {
+      if (prob.id.startsWith('nc-')) toggleNeetcodeProblem(prob.id);
+      else if (prob.id.startsWith('s-')) toggleStriverProblem(prob.id);
+      else toggleRoadmapProblem(prob.id);
+    } else {
+      const kitProb = (s.dsaProblems || []).find(x => x.problem.toLowerCase() === prob.title.toLowerCase());
+      if (kitProb) {
+        mutateState(draft => {
+          const p = draft.dsaProblems.find(x => x.id === kitProb.id);
+          if (p) p.status = p.status === 'solved' ? 'attempted' : 'solved';
+        });
+      } else {
+        toggleRoadmapProblem(prob.title);
+      }
+    }
+    addToast(`Updated status for: ${prob.title}`);
+  };
+
+  const handleLeafClick = (leafNode, breadcrumbs) => {
+    setSelectedLeafPattern(leafNode);
+    setParentBreadcrumbs(breadcrumbs);
+  };
 
   // GS Finance count from localStorage
   const gsFinanceCount = (() => {
@@ -440,6 +482,26 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
         </div>
       </div>
 
+      {/* DSA PATTERNS MINDMAP */}
+      <div className="card" style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--electric)' }}>DSA Pattern Mindmap Explorer</h3>
+            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--t2)' }}>
+              Track patterns and solved/total ratios horizontally. Click leaf nodes to practice.
+            </p>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('dsa')}>Full Sheet →</button>
+        </div>
+
+        <DsaMindmap 
+          dsaPatternsData={dsaPatternsData}
+          isProblemSolved={isProblemSolved}
+          togglePatternProblem={togglePatternProblem}
+          onLeafClick={handleLeafClick}
+        />
+      </div>
+
       <div className="g2">
         <div>
           {/* THIS WEEK'S TASKS */}
@@ -642,6 +704,108 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
           </div>
         </div>
       </div>
+
+      {/* Drawer Overlay for Detail Drawer in Dashboard */}
+      {selectedLeafPattern && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0, right: 0, bottom: 0,
+            width: '100%', maxWidth: '450px',
+            background: 'var(--bg1)',
+            borderLeft: '1px solid var(--border)',
+            boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            animation: 'slide-in 0.3s ease-out'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--t3)', textTransform: 'uppercase' }}>
+                {parentBreadcrumbs.join(' > ')}
+              </div>
+              <h3 style={{ margin: '4px 0 0 0', fontSize: '18px', color: 'var(--electric)' }}>
+                {selectedLeafPattern.name}
+              </h3>
+            </div>
+            <button 
+              className="btn btn-ghost" 
+              onClick={() => setSelectedLeafPattern(null)}
+              style={{ fontSize: '20px', padding: '4px 8px', minWidth: 'auto', height: 'auto', lineHeight: 1 }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--t2)', fontFamily: 'var(--mono)' }}>
+                Representative Problems
+              </h4>
+              {(!selectedLeafPattern.problems || selectedLeafPattern.problems.length === 0) ? (
+                <div className="note-box" style={{ fontSize: '12px' }}>
+                  No predefined problems logged for this sub-pattern yet.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedLeafPattern.problems.map(prob => {
+                    const solved = isProblemSolved(prob);
+                    return (
+                      <div 
+                        key={prob.id || prob.title}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          background: 'var(--bg2)',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--rs)',
+                          border: '1px solid var(--border)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, marginRight: '10px' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={solved} 
+                            onChange={() => togglePatternProblem(prob)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          />
+                          <span style={{ fontSize: '13px', color: solved ? 'var(--t3)' : 'var(--t1)', textDecoration: solved ? 'line-through' : 'none' }}>
+                            {prob.title}
+                          </span>
+                        </div>
+                        {prob.link && (
+                          <a 
+                            href={prob.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="btn btn-ghost btn-xs"
+                            style={{ textDecoration: 'none', padding: '4px 8px' }}
+                          >
+                            Solve ↗
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setSelectedLeafPattern(null)}
+            style={{ width: '100%' }}
+          >
+            Close Drawer
+          </button>
+        </div>
+      )}
     </div>
   );
 }
