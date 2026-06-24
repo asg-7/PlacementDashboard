@@ -72,10 +72,12 @@ export default function ProjectsView({ state, mutateState, addToast, resetProjec
     const tech = form.tech.value.trim();
     const status = form.status.value;
     const githubLink = form.githubLink.value.trim();
+    const liveUrl = form.liveUrl.value.trim();
     const notes = form.notes.value.trim();
+    const deploymentStatus = liveUrl ? 'Deployed' : 'Not Deployed';
 
     mutateState(draft => {
-      const obj = { name, description, tech, status, githubLink, notes };
+      const obj = { name, description, tech, status, githubLink, liveUrl, notes, deploymentStatus };
       if (editingProj.id) {
         const p = draft.projects.find(x => x.id === editingProj.id);
         if (p) {
@@ -135,6 +137,16 @@ export default function ProjectsView({ state, mutateState, addToast, resetProjec
         </div>
       )}
 
+      {/* Warning banner for missing live URLs */}
+      {s.projects.filter(p => p.status === 'completed' && !p.liveUrl).length > 0 && (
+        <div style={{ background: 'var(--amber-dim)', border: '1px solid rgba(255, 184, 0, 0.25)', borderRadius: '12px', padding: '12px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ fontSize: '20px' }}>⚠️</div>
+          <div style={{ flex: 1, fontSize: '12.5px', color: 'var(--t1)' }}>
+            <strong>Missing Live Deployment URLs:</strong> You have completed projects without live links. Recruiters prioritize projects they can interact with!
+          </div>
+        </div>
+      )}
+
       {/* Status Filter Tab Bar */}
       <div style={{ 
         display: 'flex', 
@@ -188,7 +200,12 @@ export default function ProjectsView({ state, mutateState, addToast, resetProjec
             <div className="proj-card" key={p.id}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                 <div className="proj-name">{p.name}</div>
-                <span className={getStatusBadgeClass(p.status)}>{p.status}</span>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <span className={getStatusBadgeClass(p.status)}>{p.status}</span>
+                  <span className={`badge ${p.liveUrl ? 'b-green' : 'b-red'}`} style={{ fontSize: '10px' }}>
+                    {p.liveUrl ? '🟢 Deployed' : '🔴 Not Deployed'}
+                  </span>
+                </div>
               </div>
               <div className="proj-desc">{p.description}</div>
               <div>
@@ -213,13 +230,28 @@ export default function ProjectsView({ state, mutateState, addToast, resetProjec
                   ))}
                 </div>
               </div>
+              
+              {!p.liveUrl && p.status === 'completed' && (
+                <div style={{ marginTop: '10px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--t3)' }}>Deploy Now:</span>
+                  <a href="https://vercel.com/new" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs" style={{ padding: '2px 6px', fontSize: '10px' }}>Vercel</a>
+                  <a href="https://render.com/" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs" style={{ padding: '2px 6px', fontSize: '10px' }}>Render</a>
+                  <a href="https://huggingface.co/spaces" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs" style={{ padding: '2px 6px', fontSize: '10px' }}>HF Spaces</a>
+                </div>
+              )}
+
               {p.notes && (
                 <div style={{ fontSize: '12px', color: 'var(--t3)', lineHeight: '1.4' }}>{p.notes}</div>
               )}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px' }}>
                 {p.githubLink && (
                   <a href={p.githubLink} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>
                     GitHub ↗
+                  </a>
+                )}
+                {p.liveUrl && (
+                  <a href={p.liveUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
+                    Live Demo ↗
                   </a>
                 )}
                 <button className="btn btn-ghost btn-xs" onClick={() => setEditingProj(p)}>Edit</button>
@@ -264,6 +296,10 @@ export default function ProjectsView({ state, mutateState, addToast, resetProjec
                   <label>GitHub Link</label>
                   <input name="githubLink" placeholder="https://github.com/..." defaultValue={editingProj.githubLink || ''} />
                 </div>
+              </div>
+              <div className="fg">
+                <label>Live Demo URL (Deployment URL)</label>
+                <input name="liveUrl" placeholder="https://..." defaultValue={editingProj.liveUrl || ''} />
               </div>
               <div className="fg">
                 <label>Notes</label>

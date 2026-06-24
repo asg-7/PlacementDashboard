@@ -14,6 +14,8 @@ import RoadmapView from './views/RoadmapView';
 import AnalyticsView from './views/AnalyticsView';
 import MLRoadmap from './views/MLRoadmap';
 import DailyTasksView from './views/DailyTasksView';
+import SystemDesignView from './views/SystemDesignView';
+import ProfileView from './views/ProfileView';
 
 const STORAGE_KEY = 'placementOS.v2';
 
@@ -315,10 +317,12 @@ export default function App() {
     { id: 'dashboard',     label: 'Dashboard',    icon: '⬡' },
     { id: 'daily',         label: 'Daily Tasks',  icon: '📆' },
     { id: 'companies',     label: 'Companies',    icon: '◈' },
+    { id: 'profile',      label: 'Profile',    icon: '👤' },
     { id: 'applications',  label: 'Applications', icon: '◇' },
     { id: 'hackathons',    label: 'Hackathons',   icon: '◆' },
     { id: 'certifications',label: 'Certs',        icon: '◉' },
     { id: 'dsa',           label: 'DSA',          icon: '⟨⟩' },
+    { id: 'systemDesign', label: 'Sys Design', icon: '🏗️' },
     { id: 'ml',            label: 'ML Roadmap',   icon: '🧠' },
     { id: 'projects',      label: 'Projects',     icon: '▣' },
     { id: 'youtube',       label: 'YouTube',      icon: '📺' },
@@ -329,7 +333,19 @@ export default function App() {
   // Calculate overall Execution Score
   const appSent = state.companies.filter(c => c.status !== 'not applied').length;
   const certDone = state.certifications.filter(c => c.progress >= 100).length;
-  const dsaSolved = (state.dsaProblems || []).filter(d => d.status === 'solved').length;
+  
+  const getProgressCount = (ns) => {
+    try {
+      return JSON.parse(localStorage.getItem(`placement_os_${ns}`) || "[]").length;
+    } catch(e) {
+      return 0;
+    }
+  };
+
+  const striverCount = getProgressCount('striver_a2z');
+  const neetcodeCount = getProgressCount('neetcode_150');
+  const systemDesignCount = getProgressCount('system_design');
+
   let tasksDone = 0, totalTasks = 0;
   Object.values(state.weekTasks || {}).forEach(arr => {
     arr.forEach(v => {
@@ -337,12 +353,21 @@ export default function App() {
       if (v) tasksDone++;
     });
   });
+
+  const dsaPct = Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100);
+  const sysDesignPct = Math.round((systemDesignCount / 124) * 100);
+  const appPct = Math.min(100, Math.round((appSent / 350) * 100));
+  const certPct = state.certifications.length ? Math.round((certDone / state.certifications.length) * 100) : 0;
+  const taskPct = totalTasks > 0 ? Math.round((tasksDone / totalTasks) * 100) : 0;
+
   const execScore = Math.round(
-    ((state.companies.length ? (appSent / state.companies.length) : 0) * 25) +
-    ((state.certifications.length ? (certDone / state.certifications.length) : 0) * 25) +
-    (Math.min(dsaSolved, 100) / 100 * 25) +
-    (totalTasks > 0 ? (tasksDone / totalTasks * 25) : 0)
+    (dsaPct * 0.25) +
+    (sysDesignPct * 0.20) +
+    (appPct * 0.20) +
+    (certPct * 0.15) +
+    (taskPct * 0.20)
   );
+
 
   // Backup handlers
   const handleExportData = () => {
@@ -418,6 +443,14 @@ export default function App() {
             addToast={addToast}
           />
         );
+      case 'profile':
+        return (
+          <ProfileView
+            state={state}
+            mutateState={mutateState}
+            addToast={addToast}
+          />
+        );
       case 'applications':
         return (
           <ApplicationsView
@@ -445,6 +478,14 @@ export default function App() {
       case 'dsa':
         return (
           <DsaView
+            state={state}
+            mutateState={mutateState}
+            addToast={addToast}
+          />
+        );
+      case 'systemDesign':
+        return (
+          <SystemDesignView
             state={state}
             mutateState={mutateState}
             addToast={addToast}

@@ -29,15 +29,57 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
   // Curriculum Metrics
   const { count: dsaRoadmapCount } = useProgress('dsa_roadmap');
   const { count: striverCount } = useProgress('striver_a2z');
+  const { count: neetcodeCount } = useProgress('neetcode_150');
+  const { count: systemDesignCount } = useProgress('system_design');
   const { count: mlCount } = useProgress('ml_roadmap');
+  const { count: gsPuzzlesCount } = useProgress('gs_puzzles');
+
+  // GS Finance count from localStorage
+  const gsFinanceCount = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('placement_os_gs_finance') || "[]").length;
+    } catch(e) {
+      return 0;
+    }
+  })();
 
   const totalDsaRoadmapProblems = dsaTopicsData.reduce((sum, t) => sum + t.problems.length, 0);
   const totalStriverProblems = striverTopics.reduce((sum, t) => sum + t.problems.length, 0);
+  const totalNeetcodeProblems = 150;
+  const totalSystemDesignCheckpoints = 12 * 7 + 8 * 5; // 84 HLD + 40 LLD = 124
   const totalMlResources = mlPhasesData.reduce((sum, p) => sum + p.resources.length, 0);
 
   const dsaRoadmapPct = totalDsaRoadmapProblems > 0 ? Math.round((dsaRoadmapCount / totalDsaRoadmapProblems) * 100) : 0;
   const striverPct = totalStriverProblems > 0 ? Math.round((striverCount / totalStriverProblems) * 100) : 0;
+  const neetcodePct = Math.round((neetcodeCount / totalNeetcodeProblems) * 100);
+  const systemDesignPct = Math.round((systemDesignCount / totalSystemDesignCheckpoints) * 100);
   const mlPct = totalMlResources > 0 ? Math.round((mlCount / totalMlResources) * 100) : 0;
+
+  const profile = s.profileData || {};
+  const resumeDone = Object.values(profile.resume || {}).filter(Boolean).length;
+  const linkedinDone = Object.values(profile.linkedin || {}).filter(v => v === true).length;
+  const githubDone = Object.values(profile.github || {}).filter(v => v === true).length;
+  const profilePct = Math.round(((resumeDone + linkedinDone + githubDone) / 20) * 100) || 0;
+
+  const projectsCount = s.projects.length;
+  const projectsCompleted = s.projects.filter(p => p.progress >= 100 || p.status === 'completed').length;
+  const projectsPct = projectsCount > 0 ? Math.round((projectsCompleted / projectsCount) * 100) : 0;
+
+  // GS Outreach stats
+  const gsReferrals = (s.referralOutreach || []).filter(r => String(r.companyName).toLowerCase().includes('goldman'));
+  const gsReferralsYes = gsReferrals.filter(r => r.response === 'Yes' || r.referred === true).length;
+  const gsReferralsPending = gsReferrals.filter(r => r.response === 'Pending').length;
+
+  // Date countdown calculation
+  const getGSCountdown = () => {
+    if (!s.gsInterviewDate) return 'Set Date';
+    const diff = new Date(s.gsInterviewDate) - new Date();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    if (isNaN(days)) return 'Invalid Date';
+    if (days < 0) return 'Passed';
+    if (days === 0) return 'TODAY';
+    return `${days} Days Left`;
+  };
 
   // Target Counts
   const projectsDeployed = s.projects.filter(p => p.progress >= 100 || p.status === 'completed').length;
@@ -112,13 +154,165 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
       {/* CGPA REMINDER NOTE */}
       <div className="card" style={{ background: 'var(--amber-dim)', border: '1px solid rgba(255, 184, 0, 0.25)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
         <div style={{ fontSize: '24px' }}>⚡</div>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, color: 'var(--amber)', fontSize: '13px', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '1px' }}>
             KIIT 2026 Candidate CGPA Reframe
           </div>
           <div style={{ fontSize: '12px', color: 'var(--t1)', marginTop: '2px', lineHeight: 1.4 }}>
             Your CGPA is <strong>6.8</strong> — Eligible for TCS, Infosys, HCLTech, Cognizant, Accenture.
             Compensate for higher-tier filters with: <strong>3+ live project deployments</strong> • <strong>3+ hackathon team submissions</strong> • <strong>IBM/Google certifications</strong>.
+          </div>
+        </div>
+      </div>
+
+      {/* GOLDMAN SACHS PREP CARD, APPLICATION COUNTER, & EXECUTION SCORE CONTAINER */}
+      <div className="g3" style={{ marginBottom: '20px', gap: '20px' }}>
+        {/* Goldman Sachs Prep Card */}
+        <div className="card gs-prep-card-gold" style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--gold-border)', background: 'var(--gold-bg)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="gs-finalist-badge">★ GS FINALIST</span>
+                <h3 style={{ margin: '8px 0 4px', color: 'var(--gold-text)', fontSize: '18px' }}>Goldman Sachs Prep</h3>
+                <p style={{ fontSize: '11px', color: 'var(--t2)', margin: 0 }}>National AI Hackathon Shortlist</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div className="countdown-pill">{getGSCountdown()}</div>
+                <input 
+                  type="date" 
+                  value={s.gsInterviewDate || ''} 
+                  onChange={(e) => mutateState(draft => { draft.gsInterviewDate = e.target.value; })}
+                  style={{ fontSize: '10px', marginTop: '4px', padding: '2px 4px', width: '105px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--t1)', borderRadius: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '14px', borderTop: '1px solid rgba(255,215,0,0.15)', paddingTop: '10px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--t2)' }}>
+                <div>🧩 Puzzles: <strong>{gsPuzzlesCount}/30</strong></div>
+                <div>💼 Finance: <strong>{gsFinanceCount}/5</strong></div>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--t2)' }}>
+                <div>🤝 Outreach: <strong>{gsReferralsYes} Ref / {gsReferralsPending} Pend</strong></div>
+                <div>📖 <a href="https://www.goldmansachs.com/careers/students/programs/engineering-blog.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold-text)', textDecoration: 'underline' }}>GS Eng Blog</a></div>
+              </div>
+            </div>
+          </div>
+          <button 
+            className="btn btn-gold btn-sm" 
+            onClick={() => onNavigate('profile')}
+            style={{ width: '100%', marginTop: '10px' }}
+          >
+            🌟 Open GS Prep Hub
+          </button>
+        </div>
+
+        {/* Application Daily Counter & Pace Bar */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '14px', margin: 0, fontFamily: 'var(--mono)', textTransform: 'uppercase', color: 'var(--t2)' }}>Application Speedometer</h3>
+              <span className={`badge ${appSent >= 350 ? 'b-green' : 'b-amber'}`} style={{ fontSize: '10px' }}>
+                {appSent >= 350 ? 'On Track' : 'Behind Pace'}
+              </span>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '20px', margin: '14px 0' }}>
+              <div>
+                <span style={{ fontSize: '24px', fontWeight: 800, color: 'var(--volt)' }}>{appSent}</span>
+                <span style={{ fontSize: '11px', color: 'var(--t3)', block: 'inline', marginLeft: '6px' }}>/ 350+ goal</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '11px', color: 'var(--t2)', marginBottom: '8px' }}>
+              Pace bar: Dec target is 350 applications. Current pace: {Math.round(appSent/350*100)}%
+            </div>
+            {renderProgressBar(appSent / 3.5, 'var(--volt)')}
+          </div>
+
+          <button 
+            className="btn btn-primary btn-sm" 
+            onClick={() => onNavigate('companies')}
+            style={{ width: '100%', marginTop: '10px' }}
+          >
+            🚀 Apply to More Companies
+          </button>
+        </div>
+
+        {/* Unified Execution Score Widget */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '14px', margin: 0, fontFamily: 'var(--mono)', textTransform: 'uppercase', color: 'var(--t2)' }}>Execution Score</h3>
+              <span className="badge b-electric" style={{ fontSize: '10px' }}>Unified Progress</span>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0' }}>
+              <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--electric)' }}>
+                {(() => {
+                  const dsaPct = Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100);
+                  const sysDesignPct = Math.round((systemDesignCount / totalSystemDesignCheckpoints) * 100);
+                  const appPct = Math.min(100, Math.round((appSent / 350) * 100));
+                  const certPct = certTotal ? Math.round((certDone / certTotal) * 100) : 0;
+                  
+                  let tDone = 0, tTotal = 0;
+                  Object.values(s.weekTasks || {}).forEach(arr => {
+                    arr.forEach(v => {
+                      tTotal++;
+                      if (v) tDone++;
+                    });
+                  });
+                  const taskPct = tTotal > 0 ? Math.round((tDone / tTotal) * 100) : 0;
+
+                  return Math.round(
+                    (dsaPct * 0.25) +
+                    (sysDesignPct * 0.20) +
+                    (appPct * 0.20) +
+                    (certPct * 0.15) +
+                    (taskPct * 0.20)
+                  );
+                })()}%
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--t3)' }}>Goal: 100% Placed</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
+                  <span>DSA (Striver/NeetCode)</span>
+                  <span>{Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100)}%</span>
+                </div>
+                {renderProgressBar(Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100), 'var(--electric)')}
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
+                  <span>System Design</span>
+                  <span>{systemDesignPct}%</span>
+                </div>
+                {renderProgressBar(systemDesignPct, 'var(--amber)')}
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
+                  <span>Applications</span>
+                  <span>{Math.min(100, Math.round((appSent / 350) * 100))}%</span>
+                </div>
+                {renderProgressBar(Math.min(100, Math.round((appSent / 350) * 100)), 'var(--volt)')}
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
+                  <span>Profile Audit</span>
+                  <span>{profilePct}%</span>
+                </div>
+                {renderProgressBar(profilePct, 'var(--violet)')}
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
+                  <span>Projects</span>
+                  <span>{projectsPct}%</span>
+                </div>
+                {renderProgressBar(projectsPct, 'var(--rose)')}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -202,7 +396,7 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
         <div style={{ fontFamily: 'var(--mono)', fontSize: '10px', fontWeight: 700, color: 'var(--t3)', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>
           Curriculum Cockpit
         </div>
-        <div className="g3">
+        <div className="g5">
           <div className="metric" onClick={() => onNavigate('dsa')} style={{ cursor: 'pointer' }}>
             <div className="metric-icon">⟨⟩</div>
             <div className="metric-val" style={{ color: 'var(--electric)' }}>{dsaRoadmapPct}%</div>
@@ -214,18 +408,34 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
           <div className="metric" onClick={() => onNavigate('dsa')} style={{ cursor: 'pointer' }}>
             <div className="metric-icon">🏆</div>
             <div className="metric-val" style={{ color: 'var(--violet)' }}>{striverPct}%</div>
-            <div className="metric-lbl">Striver A2Z Sheet</div>
+            <div className="metric-lbl">Striver Sheet</div>
             <div className="metric-sub">{striverCount} of {totalStriverProblems} solved</div>
             <div className="metric-glow" style={{ background: 'var(--violet)' }}></div>
             {renderProgressBar(striverPct, 'var(--violet)')}
           </div>
+          <div className="metric" onClick={() => onNavigate('dsa')} style={{ cursor: 'pointer' }}>
+            <div className="metric-icon">🚀</div>
+            <div className="metric-val" style={{ color: 'var(--volt)' }}>{neetcodePct}%</div>
+            <div className="metric-lbl">NeetCode 150</div>
+            <div className="metric-sub">{neetcodeCount} of {totalNeetcodeProblems} solved</div>
+            <div className="metric-glow" style={{ background: 'var(--volt)' }}></div>
+            {renderProgressBar(neetcodePct, 'var(--volt)')}
+          </div>
+          <div className="metric" onClick={() => onNavigate('systemDesign')} style={{ cursor: 'pointer' }}>
+            <div className="metric-icon">🏗️</div>
+            <div className="metric-val" style={{ color: 'var(--amber)' }}>{systemDesignPct}%</div>
+            <div className="metric-lbl">Sys Design</div>
+            <div className="metric-sub">{systemDesignCount} of {totalSystemDesignCheckpoints} completed</div>
+            <div className="metric-glow" style={{ background: 'var(--amber)' }}></div>
+            {renderProgressBar(systemDesignPct, 'var(--amber)')}
+          </div>
           <div className="metric" onClick={() => onNavigate('ml')} style={{ cursor: 'pointer' }}>
             <div className="metric-icon">🧠</div>
-            <div className="metric-val" style={{ color: 'var(--volt)' }}>{mlPct}%</div>
+            <div className="metric-val" style={{ color: 'var(--rose)' }}>{mlPct}%</div>
             <div className="metric-lbl">ML Roadmap</div>
             <div className="metric-sub">{mlCount} of {totalMlResources} completed</div>
-            <div className="metric-glow" style={{ background: 'var(--volt)' }}></div>
-            {renderProgressBar(mlPct, 'var(--volt)')}
+            <div className="metric-glow" style={{ background: 'var(--rose)' }}></div>
+            {renderProgressBar(mlPct, 'var(--rose)')}
           </div>
         </div>
       </div>

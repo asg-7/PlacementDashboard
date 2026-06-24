@@ -1148,3 +1148,485 @@ tr:hover td { background: rgba(0, 229, 255, .02); }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================================
+   SYSTEM DESIGN VIEW STYLES
+   ============================================================ */
+.system-design-container, .profile-view-container {
+  animation: fade-in 0.4s ease-out;
+}
+.sd-tabs-nav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+  padding-bottom: 2px;
+}
+.sd-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--t3);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: var(--mono);
+  cursor: pointer;
+  border-radius: var(--rs);
+  transition: all .2s;
+}
+.sd-tab-btn:hover {
+  color: var(--t1);
+  background: var(--bg2);
+}
+.sd-tab-btn.active {
+  color: var(--electric);
+  background: var(--electric-dim);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+}
+
+.systems-grid, .profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.system-card, .profile-grid .card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.system-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  border-color: var(--electric-glow);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.system-icon {
+  font-size: 24px;
+}
+.difficulty-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  font-family: var(--mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.difficulty-badge.beginner {
+  background: rgba(0, 230, 118, 0.15);
+  color: #00e676;
+}
+.difficulty-badge.intermediate {
+  background: rgba(255, 179, 0, 0.15);
+  color: #ffb300;
+}
+.difficulty-badge.advanced {
+  background: rgba(255, 23, 68, 0.15);
+  color: #ff1744;
+}
+
+.progress-mini-bar {
+  background: var(--bg4);
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 14px 0 8px;
+}
+.progress-mini-bar .fill {
+  background: var(--electric);
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--t3);
+}
+
+/* Detail view */
+.system-detail-view, .profile-tab-content {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--rl);
+  padding: 24px;
+}
+.back-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--t2);
+  padding: 6px 12px;
+  border-radius: var(--rs);
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+.back-btn:hover {
+  background: var(--bg4);
+  color: var(--t1);
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+}
+.system-icon-large {
+  font-size: 40px;
+}
+
+.system-resources h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: var(--t3);
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.resource-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.res-pill {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--t2);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  text-decoration: none;
+  transition: all .2s;
+}
+.res-pill:hover {
+  background: var(--bg3);
+  color: var(--t1);
+  border-color: var(--electric);
+}
+
+.steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.step-row {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--rs);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all .2s;
+}
+.step-row.completed {
+  border-color: rgba(0, 229, 255, 0.2);
+  background: rgba(0, 229, 255, 0.02);
+}
+.step-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.checkbox-container {
+  display: block;
+  position: relative;
+  padding-left: 20px;
+  cursor: pointer;
+}
+.checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0; width: 0;
+}
+.checkmark {
+  position: absolute;
+  top: -10px; left: 0;
+  height: 18px; width: 18px;
+  background-color: var(--bg4);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+}
+.checkbox-container:hover input ~ .checkmark {
+  border-color: var(--electric);
+}
+.checkbox-container input:checked ~ .checkmark {
+  background-color: var(--electric);
+  border-color: var(--electric);
+}
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+.checkbox-container input:checked ~ .checkmark:after {
+  display: block;
+}
+.checkbox-container .checkmark:after {
+  left: 6px; top: 2px;
+  width: 5px; height: 10px;
+  border: solid var(--bg0);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.step-text {
+  font-size: 13px;
+  color: var(--t2);
+}
+.step-row.completed .step-text {
+  text-decoration: line-through;
+  color: var(--t3);
+}
+
+.step-notes {
+  margin-top: 4px;
+  width: 100%;
+}
+.step-notes textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--t1);
+  padding: 8px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+/* LLD problem cards styles */
+.lld-patterns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.lld-tag {
+  background: rgba(124, 77, 255, 0.15);
+  color: #b388ff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--mono);
+}
+
+/* ============================================================
+   PROFILE VIEW STYLES
+   ============================================================ */
+.profile-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--rs);
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.profile-checkbox-row:hover {
+  background: var(--bg3);
+}
+.profile-checkbox-row input[type="checkbox"] {
+  margin-top: 3px;
+  cursor: pointer;
+}
+.info-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 2px;
+}
+.text-gold {
+  color: var(--gold-text) !important;
+}
+
+.guide-card h4 {
+  font-size: 13px;
+  margin: 0 0 6px 0;
+  color: var(--t1);
+}
+.code-formula {
+  font-family: var(--mono);
+  background: var(--bg0);
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  font-size: 11px;
+  color: var(--electric);
+  margin: 6px 0;
+}
+.example-text {
+  font-size: 11px;
+  color: var(--t3);
+  line-height: 1.4;
+  margin: 0;
+}
+.g-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  font-family: var(--mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+.badge-p0 { background: rgba(255, 23, 68, 0.15); color: #ff1744; }
+.badge-p1 { background: rgba(255, 179, 0, 0.15); color: #ffb300; }
+.badge-p2 { background: rgba(0, 229, 255, 0.15); color: var(--electric); }
+
+.connections-input-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 14px;
+  border-radius: var(--rs);
+  margin-bottom: 16px;
+}
+.connections-input-row input {
+  width: 100px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--t1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--mono);
+}
+
+.star-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--rs);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.star-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: var(--t1);
+  border-bottom: 1px solid var(--border3);
+  padding-bottom: 6px;
+}
+.star-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.star-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.star-field label {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-family: var(--mono);
+  color: var(--t3);
+}
+.star-field textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--t1);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+/* Puzzles styling */
+.puzzle-row {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+.puzzle-row:last-child {
+  border-bottom: none;
+}
+.puzzle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.puzzle-header h4 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--t1);
+}
+.puzzle-body {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--bg2);
+  border-radius: var(--rs);
+  border: 1px solid var(--border2);
+  font-size: 12px;
+}
+.btn-reveal {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--t2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.btn-reveal:hover {
+  background: var(--bg4);
+  color: var(--t1);
+}
+
+/* ============================================================
+   GOLD & SPECIAL UI GRADIENTS
+   ============================================================ */
+.gs-prep-card-gold {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(184, 134, 11, 0.15) 100%) !important;
+  border: 1px solid rgba(212, 175, 55, 0.35) !important;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.05);
+}
+.gs-finalist-badge {
+  background: linear-gradient(90deg, #d4af37, #b8860b);
+  color: #000;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+.btn-gold {
+  background: linear-gradient(90deg, #d4af37, #b8860b);
+  color: #000 !important;
+  border: none;
+  font-weight: 700;
+}
+.btn-gold:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
+.countdown-pill {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: #d4af37;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: inline-block;
+}
+

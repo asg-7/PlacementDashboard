@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useProgress } from '../hooks/useProgress';
 import { dsaTopicsData } from '../data/dsaTopics';
 import { striverTopics } from '../data/striverSheet';
+import { neetcodeTopics } from '../data/neetcode150';
 import { DSA_TOPICS } from '../data/seed';
 
 // Reusable Components
@@ -12,7 +13,7 @@ import DifficultyBar from '../components/dsa/DifficultyBar';
 
 export default function DsaView({ state, mutateState, addToast }) {
   // Tab State
-  const [tab, setTab] = useState('roadmap'); // 'roadmap', 'striver', 'kits'
+  const [tab, setTab] = useState('roadmap'); // 'roadmap', 'striver', 'neetcode', 'mock', 'aptitude', 'kits'
 
   // Source Filter Chips State
   const [activeSources, setActiveSources] = useState(new Set(['leetcode', 'neetcode', 'striver', 'geeksforgeeks', 'hackerrank']));
@@ -25,6 +26,19 @@ export default function DsaView({ state, mutateState, addToast }) {
   // Progress Hooks
   const { done: dsaRoadmapProgress, toggle: toggleRoadmapProblem } = useProgress('dsa_roadmap');
   const { done: striverProgress, toggle: toggleStriverProblem } = useProgress('striver_a2z');
+  const { done: neetcodeProgress, toggle: toggleNeetcodeProblem } = useProgress('neetcode_150');
+
+  // Mock Interview States
+  const [mockRunning, setMockRunning] = useState(false);
+  const [mockTimeRemaining, setMockTimeRemaining] = useState(1800); // 30 minutes in seconds
+  const [mockTopic, setMockTopic] = useState('Arrays');
+  const [mockProb, setMockProb] = useState(null);
+  const mockTimerRef = useRef(null);
+
+  // Aptitude States
+  const [aptitudeRunning, setAptitudeRunning] = useState(false);
+  const [aptitudeTimeRemaining, setAptitudeTimeRemaining] = useState(1800); // 30 minutes
+  const aptitudeTimerRef = useRef(null);
 
   // Existing Profile Sync Simulation States
   const [syncPanelOpen, setSyncPanelOpen] = useState(false);
@@ -346,6 +360,116 @@ export default function DsaView({ state, mutateState, addToast }) {
     return { solvedCount, totalCount, pct };
   };
 
+  // NeetCode 150 lock logic (60% gating)
+  const isNeetcodeTopicLocked = (index) => {
+    if (index === 0) return false;
+    const prevTopic = neetcodeTopics[index - 1];
+    const prevSolved = prevTopic.problems.filter(p => neetcodeProgress.has(p.id)).length;
+    const prevPct = prevTopic.problems.length > 0 ? prevSolved / prevTopic.problems.length : 0;
+    return prevPct < 0.6; // Lock if previous topic is less than 60% complete
+  };
+
+  const getNeetcodeTopicStats = (topic) => {
+    const solvedCount = topic.problems.filter(p => neetcodeProgress.has(p.id)).length;
+    const totalCount = topic.problems.length;
+    const pct = totalCount > 0 ? Math.round((solvedCount / totalCount) * 100) : 0;
+    return { solvedCount, totalCount, pct };
+  };
+
+  // Mock Timer Handlers
+  const toggleMockTimer = () => {
+    if (mockRunning) {
+      clearInterval(mockTimerRef.current);
+      setMockRunning(false);
+    } else {
+      // Pick a random problem under mockTopic from striverTopics/dsaProblems
+      let potentialProbs = [];
+      neetcodeTopics.forEach(t => {
+        if (t.title.toLowerCase().includes(mockTopic.toLowerCase())) {
+          potentialProbs.push(...t.problems);
+        }
+      });
+      if (potentialProbs.length === 0) {
+        striverTopics.forEach(t => {
+          if (t.title.toLowerCase().includes(mockTopic.toLowerCase())) {
+            potentialProbs.push(...t.problems);
+          }
+        });
+      }
+      
+      const p = potentialProbs.length > 0 
+        ? potentialProbs[Math.floor(Math.random() * potentialProbs.length)]
+        : { id: 'mock-custom', title: `Random ${mockTopic} Interview Challenge`, difficulty: 'medium', link: 'https://leetcode.com/' };
+
+      setMockProb(p);
+      setMockRunning(true);
+      mockTimerRef.current = setInterval(() => {
+        setMockTimeRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(mockTimerRef.current);
+            setMockRunning(false);
+            addToast('Mock interview time is up!', 'warning');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  };
+
+  const saveMockResult = (status) => {
+    if (mockTimerRef.current) clearInterval(mockTimerRef.current);
+    mutateState(draft => {
+      if (!draft.mockInterviewLog) draft.mockInterviewLog = [];
+      draft.mockInterviewLog.unshift({
+        id: `mock-dsa-${Date.now()}`,
+        topic: mockTopic,
+        problem: mockProb?.title || mockProb?.problem || 'Unknown Problem',
+        status, // 'solved', 'partial', 'failed'
+        date: new Date().toLocaleDateString(),
+        timeTaken: `${Math.floor((1800 - mockTimeRemaining)/60)}m`
+      });
+    });
+    addToast('Mock session saved to log!', 'success');
+    setMockRunning(false);
+    setMockTimeRemaining(1800);
+    setMockProb(null);
+  };
+
+  // Aptitude practice timer
+  const toggleAptitudeTimer = () => {
+    if (aptitudeRunning) {
+      clearInterval(aptitudeTimerRef.current);
+      setAptitudeRunning(false);
+    } else {
+      setAptitudeRunning(true);
+      aptitudeTimerRef.current = setInterval(() => {
+        setAptitudeTimeRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(aptitudeTimerRef.current);
+            setAptitudeRunning(false);
+            addToast('Aptitude practice session done!', 'success');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  };
+
+  const resetAptitudeTimer = () => {
+    if (aptitudeTimerRef.current) clearInterval(aptitudeTimerRef.current);
+    setAptitudeRunning(false);
+    setAptitudeTimeRemaining(1800);
+  };
+
+  const resetMockTimer = () => {
+    if (mockTimerRef.current) clearInterval(mockTimerRef.current);
+    setMockRunning(false);
+    setMockTimeRemaining(1800);
+    setMockProb(null);
+  };
+
   const getRoadmapTopicStats = (topic) => {
     const solvedCount = topic.problems.filter(p => dsaRoadmapProgress.has(p.id)).length;
     const totalCount = topic.problems.length;
@@ -365,7 +489,11 @@ export default function DsaView({ state, mutateState, addToast }) {
   // SINGLE PROBLEM DETAIL VIEW
   if (selectedProblem) {
     const sourcesMap = selectedProblem.sources || {};
-    const hasCode = selectedProblem.id.startsWith('dr-') ? dsaRoadmapProgress.has(selectedProblem.id) : striverProgress.has(selectedProblem.id);
+    const hasCode = selectedProblem.id.startsWith('dr-') 
+      ? dsaRoadmapProgress.has(selectedProblem.id) 
+      : selectedProblem.id.startsWith('nc-')
+        ? neetcodeProgress.has(selectedProblem.id)
+        : striverProgress.has(selectedProblem.id);
     return (
       <div style={{ animation: 'fade-in 0.3s ease-out' }}>
         <div style={{ marginBottom: '16px' }}>
@@ -395,6 +523,8 @@ export default function DsaView({ state, mutateState, addToast }) {
               onClick={() => {
                 if (selectedProblem.id.startsWith('dr-')) {
                   toggleRoadmapProblem(selectedProblem.id);
+                } else if (selectedProblem.id.startsWith('nc-')) {
+                  toggleNeetcodeProblem(selectedProblem.id);
                 } else {
                   toggleStriverProblem(selectedProblem.id);
                 }
@@ -443,15 +573,27 @@ export default function DsaView({ state, mutateState, addToast }) {
 
   // DETAILED TOPIC LIST PAGE
   if (selectedTopicId) {
-    const isStriver = striverTopicView;
-    const activeTopic = isStriver
-      ? striverTopics.find(t => t.id === selectedTopicId)
-      : dsaTopicsData.find(t => t.id === selectedTopicId);
+    let activeTopic, activeProgress, activeToggler, badgeText;
+    if (tab === 'neetcode') {
+      activeTopic = neetcodeTopics.find(t => t.id === selectedTopicId);
+      activeProgress = neetcodeProgress;
+      activeToggler = toggleNeetcodeProblem;
+      badgeText = 'NeetCode 150';
+    } else if (striverTopicView) {
+      activeTopic = striverTopics.find(t => t.id === selectedTopicId);
+      activeProgress = striverProgress;
+      activeToggler = toggleStriverProblem;
+      badgeText = 'Striver A2Z';
+    } else {
+      activeTopic = dsaTopicsData.find(t => t.id === selectedTopicId);
+      activeProgress = dsaRoadmapProgress;
+      activeToggler = toggleRoadmapProblem;
+      badgeText = 'Roadmap Topic';
+    }
 
-    const activeProgress = isStriver ? striverProgress : dsaRoadmapProgress;
-    const activeToggler = isStriver ? toggleStriverProblem : toggleRoadmapProblem;
-
-    const filteredProblems = activeTopic ? activeTopic.problems.filter(matchesSourceFilter) : [];
+    const filteredProblems = activeTopic 
+      ? (tab === 'neetcode' ? activeTopic.problems : activeTopic.problems.filter(matchesSourceFilter)) 
+      : [];
 
     return (
       <div style={{ animation: 'fade-in 0.3s ease-out' }}>
@@ -459,7 +601,7 @@ export default function DsaView({ state, mutateState, addToast }) {
           <button className="btn btn-ghost btn-xs" onClick={() => setSelectedTopicId(null)}>
             ◀ Back to Dashboard
           </button>
-          <span className="badge b-purple">{isStriver ? 'Striver A2Z' : 'Roadmap Topic'}</span>
+          <span className="badge b-purple">{badgeText}</span>
         </div>
 
         <div className="card" style={{ marginBottom: '20px' }}>
@@ -527,27 +669,48 @@ export default function DsaView({ state, mutateState, addToast }) {
       </div>
 
       {/* TOP TAB NAVIGATION BAR */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setTab('roadmap')}
           className={`ntab ${tab === 'roadmap' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1 }}
+          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
         >
           Structured Roadmap
         </button>
         <button
           onClick={() => setTab('striver')}
           className={`ntab ${tab === 'striver' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1 }}
+          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
         >
           Striver A2Z Sheet
         </button>
         <button
+          onClick={() => setTab('neetcode')}
+          className={`ntab ${tab === 'neetcode' ? 'active' : ''}`}
+          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+        >
+          🚀 NeetCode 150
+        </button>
+        <button
+          onClick={() => setTab('mock')}
+          className={`ntab ${tab === 'mock' ? 'active' : ''}`}
+          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+        >
+          ⏱️ Mock Interview
+        </button>
+        <button
+          onClick={() => setTab('aptitude')}
+          className={`ntab ${tab === 'aptitude' ? 'active' : ''}`}
+          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
+        >
+          🧠 OA/Aptitude
+        </button>
+        <button
           onClick={() => setTab('kits')}
           className={`ntab ${tab === 'kits' ? 'active' : ''}`}
-          style={{ paddingBottom: '12px', flex: 1 }}
+          style={{ paddingBottom: '12px', flex: 1, minWidth: '120px' }}
         >
-          Company Kits (Tracker)
+          Company Kits
         </button>
       </div>
 
@@ -696,6 +859,243 @@ export default function DsaView({ state, mutateState, addToast }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: NEETCODE 150 */}
+      {tab === 'neetcode' && (
+        <div className="card">
+          <div className="card-hdr" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+            <div>
+              <div className="card-title">NeetCode 150 Roadmap</div>
+              <div className="card-label" style={{ fontSize: '14px', marginTop: '2px' }}>
+                Unlock sections sequentially (60% gating threshold)
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {neetcodeTopics.map((topic, index) => {
+              const locked = isNeetcodeTopicLocked(index);
+              const { solvedCount, totalCount, pct } = getNeetcodeTopicStats(topic);
+
+              return (
+                <div
+                  key={topic.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'var(--bg3)',
+                    border: locked ? '1px dashed var(--border)' : '1px solid var(--border)',
+                    borderRadius: 'var(--rs)',
+                    padding: '14px 18px',
+                    opacity: locked ? 0.55 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{ flex: 1, marginRight: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '15px', color: locked ? 'var(--t3)' : 'var(--t1)' }}>
+                        {topic.title}
+                      </h4>
+                      {locked && <span style={{ fontSize: '11px', color: 'var(--t3)' }}>🔒 Locked</span>}
+                    </div>
+
+                    {!locked && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+                        <div style={{ flex: 1, height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: 'var(--electric)' }}></div>
+                        </div>
+                        <span style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--t3)' }}>
+                          {solvedCount}/{totalCount} ({pct}%)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    {locked ? (
+                      <button className="btn btn-ghost btn-sm" disabled style={{ cursor: 'not-allowed' }}>
+                        Locked
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          setSelectedTopicId(topic.id);
+                        }}
+                      >
+                        {pct > 0 ? 'Resume' : 'Start'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: MOCK INTERVIEW */}
+      {tab === 'mock' && (
+        <div className="mock-simulator-view">
+          <div className="simulator-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '20px' }}>
+            <div className="card">
+              <h3>DSA Mock Interview Practice</h3>
+              <p className="subtitle">Simulate a live coding round. Pick a topic, hit start, and solve the random problem under pressure.</p>
+
+              <div style={{ display: 'flex', gap: '16px', margin: '20px 0', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--t2)' }}>Select Topic Focus</label>
+                  <select 
+                    value={mockTopic} 
+                    onChange={(e) => setMockTopic(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--t1)', borderRadius: 'var(--rs)' }}
+                    disabled={mockRunning}
+                  >
+                    {DSA_TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <button 
+                    onClick={toggleMockTimer} 
+                    className={`btn ${mockRunning ? 'btn-danger' : 'btn-primary'}`}
+                    style={{ height: '38px', padding: '0 20px' }}
+                  >
+                    {mockRunning ? '⏸️ Stop Mock' : '▶️ Start 30-Min Timer'}
+                  </button>
+                </div>
+                {mockRunning && (
+                  <button onClick={resetMockTimer} className="btn btn-ghost" style={{ height: '38px' }}>
+                    Reset
+                  </button>
+                )}
+              </div>
+
+              {mockRunning && mockProb && (
+                <div className="mock-problem-card" style={{ padding: '16px', background: 'var(--bg2)', borderLeft: '4px solid var(--amber)', borderRadius: 'var(--rs)', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className={`badge ${mockProb.difficulty === 'easy' ? 'b-green' : mockProb.difficulty === 'medium' ? 'b-amber' : 'b-red'}`}>{mockProb.difficulty}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--t3)', fontFamily: 'var(--mono)' }}>ID: {mockProb.id}</span>
+                  </div>
+                  <h4 style={{ margin: '10px 0', fontSize: '18px' }}>{mockProb.title || mockProb.problem}</h4>
+                  {mockProb.link && (
+                    <a href={mockProb.link} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs" style={{ display: 'inline-block', marginTop: '6px' }}>
+                      Solve on Platform ↗
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {mockRunning && (
+                <div style={{ textAlign: 'center', margin: '20px 0' }}>
+                  <div style={{ fontSize: '48px', fontWeight: 800, fontFamily: 'var(--mono)', color: mockTimeRemaining < 300 ? 'var(--rose)' : 'var(--t1)' }}>
+                    {Math.floor(mockTimeRemaining / 60).toString().padStart(2, '0')}:{(mockTimeRemaining % 60).toString().padStart(2, '0')}
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--t3)' }}>Timer keeps running even if you switch tabs.</p>
+                </div>
+              )}
+
+              {mockRunning && (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '15px', marginTop: '15px' }}>
+                  <h4 style={{ margin: '0 0 10px' }}>Self-Rate Your Performance</h4>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => saveMockResult('solved')} className="btn btn-success" style={{ flex: 1 }}>✅ Solved (Optimal)</button>
+                    <button onClick={() => saveMockResult('partial')} className="btn btn-warning" style={{ flex: 1 }}>🟡 Partial / Brute Force</button>
+                    <button onClick={() => saveMockResult('failed')} className="btn btn-danger" style={{ flex: 1 }}>❌ Failed / Time Out</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="card">
+              <h3>Mock History Log</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
+                {(!state.mockInterviewLog || state.mockInterviewLog.length === 0) ? (
+                  <p style={{ color: 'var(--t3)', fontSize: '12px', textAlign: 'center', marginTop: '20px' }}>No mock interview attempts recorded yet.</p>
+                ) : (
+                  state.mockInterviewLog.map(log => (
+                    <div key={log.id} style={{ padding: '10px 14px', background: 'var(--bg3)', borderRadius: 'var(--rs)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong>{log.problem}</strong>
+                        <div style={{ fontSize: '11px', color: 'var(--t3)' }}>Topic: {log.topic} · {log.date}</div>
+                      </div>
+                      <span className={`badge ${log.status === 'solved' ? 'b-green' : log.status === 'partial' ? 'b-amber' : 'b-red'}`}>{log.status}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: OA / APTITUDE */}
+      {tab === 'aptitude' && (
+        <div className="card">
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '20px' }}>
+            <div>
+              <h3>Online Assessment (OA) & Quantitative Aptitude</h3>
+              <p className="subtitle">Daily 30-minute practice is mandatory for company OA rounds (Goldman Sachs, TCS, Infosys).</p>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '20px 0' }}>
+                <div style={{ fontSize: '36px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--volt)' }}>
+                  {Math.floor(aptitudeTimeRemaining / 60).toString().padStart(2, '0')}:{(aptitudeTimeRemaining % 60).toString().padStart(2, '0')}
+                </div>
+                <button onClick={toggleAptitudeTimer} className={`btn ${aptitudeRunning ? 'btn-danger' : 'btn-primary'}`}>
+                  {aptitudeRunning ? '⏸️ Pause Timer' : '▶️ Start Daily 30-Min Focus'}
+                </button>
+                <button onClick={resetAptitudeTimer} className="btn btn-ghost">Reset</button>
+              </div>
+
+              <div className="aptitude-topics" style={{ marginTop: '20px' }}>
+                <h4>Core OA Topics</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ padding: '10px', background: 'var(--bg2)', borderRadius: 'var(--rs)', border: '1px solid var(--border)' }}>
+                    <strong>🎲 Probability & Permutations</strong>
+                    <div style={{ fontSize: '11px', color: 'var(--t3)' }}>Highly asked in GS Quant round</div>
+                  </div>
+                  <div style={{ padding: '10px', background: 'var(--bg2)', borderRadius: 'var(--rs)', border: '1px solid var(--border)' }}>
+                    <strong>🔢 Number Theory & Modular Arithmetic</strong>
+                    <div style={{ fontSize: '11px', color: 'var(--t3)' }}>Core cryptography/math filters</div>
+                  </div>
+                  <div style={{ padding: '10px', background: 'var(--bg2)', borderRadius: 'var(--rs)', border: '1px solid var(--border)' }}>
+                    <strong>⏱️ Time, Speed & Distance / Time & Work</strong>
+                    <div style={{ fontSize: '11px', color: 'var(--t3)' }}>TCS NQT and Infosys foundations</div>
+                  </div>
+                  <div style={{ padding: '10px', background: 'var(--bg2)', borderRadius: 'var(--rs)', border: '1px solid var(--border)' }}>
+                    <strong>🧩 Logical Reasoning / Puzzles</strong>
+                    <div style={{ fontSize: '11px', color: 'var(--t3)' }}>Deductive & inductive test segments</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '20px' }}>
+              <h4>Company OA Specific Notes</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                <div style={{ background: 'var(--gold-bg)', border: '1px solid var(--gold-border)', padding: '10px 14px', borderRadius: 'var(--rs)' }}>
+                  <span className="gs-finalist-badge" style={{ fontSize: '9px' }}>Goldman Sachs</span>
+                  <p style={{ margin: '5px 0 0', fontSize: '12px', color: 'var(--gold-text)', lineHeight: 1.4 }}>
+                    Prepare for the GS Quant round consisting of 8-10 advanced probability and statistics questions.
+                  </p>
+                </div>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '10px 14px', borderRadius: 'var(--rs)' }}>
+                  <strong>TCS Prime / Digital (NQT)</strong>
+                  <p style={{ margin: '5px 0 0', fontSize: '12px', color: 'var(--t2)', lineHeight: 1.4 }}>
+                    Advanced quantitative aptitude section is heavily speed-based. Do weekly mocks.
+                  </p>
+                </div>
+              </div>
+
+              <h4 style={{ marginTop: '20px' }}>Aptitude Practice Resources</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                <a href="https://www.indiabix.com/" target="_blank" rel="noopener noreferrer" className="gs-ref-link" style={{ fontSize: '13px' }}>🔗 IndiaBix Aptitude</a>
+                <a href="https://prepinsta.com/" target="_blank" rel="noopener noreferrer" className="gs-ref-link" style={{ fontSize: '13px' }}>🔗 PrepInsta Placement Prep</a>
+              </div>
+            </div>
           </div>
         </div>
       )}
