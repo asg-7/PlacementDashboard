@@ -24,7 +24,9 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
     }
   })();
   const realLcSolved = Number(localStorage.getItem('leetcode_solved_count_v1') || '0');
-  const dsaSolved = Math.max(realLcSolved, patternSolvedCount + (s.dsaProblems || []).filter(d => d.status === 'solved').length);
+  const realCfSolved = Number(localStorage.getItem('codeforces_solved_count_v1') || '0');
+  const realGfgSolved = Number(localStorage.getItem('geeksforgeeks_solved_count_v1') || '0');
+  const dsaSolved = Math.max(realLcSolved + realCfSolved + realGfgSolved, patternSolvedCount + (s.dsaProblems || []).filter(d => d.status === 'solved').length);
   const hackReg = s.hackathons.filter(h => h.reg === 'registered' || h.reg === 'submitted').length;
   const activeWeek = ctx.activeWeek;
   const weekTasks = activeWeek ? (activeWeek.tasks || []) : [];
