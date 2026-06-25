@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useProgress } from '../hooks/useProgress';
 import { neetcodeTopics } from '../data/neetcode150';
 import { striverTopics } from '../data/striverSheet';
+import { dsaPatternsData } from '../data/dsaPatterns';
+import DsaMindmap from '../components/dsa/DsaMindmap';
 
 // Extract and merge all problems for Pattern Hunt (180+ problems)
 const getPatternHuntProblems = () => {
@@ -64,11 +66,15 @@ const getRandomCompanies = (title) => {
 };
 
 export default function DSAPatternView({ state, mutateState, addToast }) {
-  const [tab, setTab] = useState('hunt'); // 'hunt', 'roadmap', 'cheatsheet'
+  const [tab, setTab] = useState('hunt'); // 'hunt', 'roadmap', 'mindmap', 'cheatsheet'
   const [searchTerm, setSearchTerm] = useState('');
   const [activePattern, setActivePattern] = useState('All');
   const [activeDifficulty, setActiveDifficulty] = useState('All');
   const [activeCompany, setActiveCompany] = useState('All');
+
+  // Mindmap expansion and drawer states
+  const [selectedLeafPattern, setSelectedLeafPattern] = useState(null);
+  const [parentBreadcrumbs, setParentBreadcrumbs] = useState([]);
 
   // LeetCode Stats Sync States
   const [lcUsername, setLcUsername] = useState(() => localStorage.getItem('leetcode_username_v1') || '');
@@ -83,17 +89,28 @@ export default function DSAPatternView({ state, mutateState, addToast }) {
   });
 
   const fetchLeetcodeStats = async () => {
-    if (!lcUsername.trim()) {
+    let username = lcUsername.trim();
+    if (!username) {
       addToast('Please enter a LeetCode username', 'var(--coral)');
       return;
     }
+
+    // Automatically parse clean username if full URL is pasted
+    if (username.includes('leetcode.com')) {
+      const match = username.match(/leetcode\.com\/(?:u\/)?([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        username = match[1];
+        setLcUsername(username);
+      }
+    }
+
     setLcLoading(true);
     try {
-      const res = await fetch(`https://leetcode-stats-api.herokuapp.com/${lcUsername.trim()}`);
+      const res = await fetch(`https://leetcode-stats-api.herokuapp.com/${username}`);
       const data = await res.json();
       if (data.status === 'success') {
         setLcStats(data);
-        localStorage.setItem('leetcode_username_v1', lcUsername.trim());
+        localStorage.setItem('leetcode_username_v1', username);
         localStorage.setItem('leetcode_solved_count_v1', String(data.totalSolved));
         localStorage.setItem('leetcode_stats_data_v1', JSON.stringify(data));
         addToast(`Successfully synced LeetCode solved count: ${data.totalSolved}!`);
@@ -109,9 +126,39 @@ export default function DSAPatternView({ state, mutateState, addToast }) {
     }
   };
 
-  // Track progress using hook (persisted to localStorage)
+  // Track progress using hooks
   const { done: solvedSet, toggle: toggleProblem } = useProgress('dsaPatterns_v1');
   const { done: roadmapSet, toggle: toggleRoadmapTask } = useProgress('pythonDSA_v1');
+  const { done: neetcodeSet, toggle: toggleNeetcode } = useProgress('neetcode_150');
+  const { done: striverSet, toggle: toggleStriver } = useProgress('striver_a2z');
+
+  const isProblemSolved = (prob) => {
+    if (prob.id) {
+      if (prob.id.startsWith('nc-')) return neetcodeSet.has(prob.id);
+      if (prob.id.startsWith('s-')) return striverSet.has(prob.id);
+    }
+    return solvedSet.has(prob.id) || solvedSet.has(prob.title);
+  };
+
+  const togglePatternProblem = (prob) => {
+    if (prob.id) {
+      if (prob.id.startsWith('nc-')) {
+        toggleNeetcode(prob.id);
+      } else if (prob.id.startsWith('s-')) {
+        toggleStriver(prob.id);
+      } else {
+        toggleProblem(prob.id);
+      }
+    } else {
+      toggleProblem(prob.title);
+    }
+    toggleProblem(prob.id || prob.title);
+  };
+
+  const handleLeafClick = (leafNode, breadcrumbs) => {
+    setSelectedLeafPattern(leafNode);
+    setParentBreadcrumbs(breadcrumbs);
+  };
 
   const problems = getPatternHuntProblems();
 
@@ -216,6 +263,9 @@ export default function DSAPatternView({ state, mutateState, addToast }) {
       <nav className="nav" style={{ marginBottom: '20px' }}>
         <button className={`ntab ${tab === 'hunt' ? 'active' : ''}`} onClick={() => setTab('hunt')}>
           🎯 Pattern Hunt Table
+        </button>
+        <button className={`ntab ${tab === 'mindmap' ? 'active' : ''}`} onClick={() => setTab('mindmap')}>
+          🗺️ DSA Mindmap
         </button>
         <button className={`ntab ${tab === 'roadmap' ? 'active' : ''}`} onClick={() => setTab('roadmap')}>
           📅 30-Week War Plan
@@ -638,6 +688,127 @@ def bfs(start: Node):
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB 4: MINDMAP */}
+      {tab === 'mindmap' && (
+        <div style={{ position: 'relative', animation: 'fade-in 0.4s ease-out' }}>
+          <div style={{ marginBottom: '24px' }}>
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', color: 'var(--electric)' }}>DSA Patterns Mindmap</h2>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--t2)' }}>
+              Explore patterns interactively. Click on a pattern node to see representative problems and mark them as solved.
+            </p>
+          </div>
+
+          <DsaMindmap 
+            dsaPatternsData={dsaPatternsData}
+            isProblemSolved={isProblemSolved}
+            togglePatternProblem={togglePatternProblem}
+            onLeafClick={handleLeafClick}
+          />
+
+          {/* Drawer Overlay for Detail Drawer */}
+          {selectedLeafPattern && (
+            <div 
+              style={{
+                position: 'fixed',
+                top: 0, right: 0, bottom: 0,
+                width: '100%', maxWidth: '450px',
+                background: 'var(--bg1)',
+                borderLeft: '1px solid var(--border)',
+                boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+                zIndex: 1000,
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                animation: 'slide-in 0.3s ease-out'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--t3)', textTransform: 'uppercase' }}>
+                    {parentBreadcrumbs.join(' > ')}
+                  </div>
+                  <h3 style={{ margin: '4px 0 0 0', fontSize: '18px', color: 'var(--electric)' }}>
+                    {selectedLeafPattern.name}
+                  </h3>
+                </div>
+                <button 
+                  className="btn btn-ghost" 
+                  onClick={() => setSelectedLeafPattern(null)}
+                  style={{ fontSize: '20px', padding: '4px 8px', minWidth: 'auto', height: 'auto', lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--t2)', fontFamily: 'var(--mono)' }}>
+                    Representative Problems
+                  </h4>
+                  {(!selectedLeafPattern.problems || selectedLeafPattern.problems.length === 0) ? (
+                    <div className="note-box" style={{ fontSize: '12px' }}>
+                      No predefined problems logged for this sub-pattern yet.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedLeafPattern.problems.map(prob => {
+                        const solved = isProblemSolved(prob);
+                        return (
+                          <div 
+                            key={prob.id || prob.title}
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              background: 'var(--bg2)',
+                              padding: '10px 14px',
+                              borderRadius: 'var(--rs)',
+                              border: '1px solid var(--border)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, marginRight: '10px' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={solved} 
+                                onChange={() => togglePatternProblem(prob)}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                              />
+                              <span style={{ fontSize: '13px', color: solved ? 'var(--t3)' : 'var(--t1)', textDecoration: solved ? 'line-through' : 'none' }}>
+                                {prob.title}
+                              </span>
+                            </div>
+                            {prob.link && (
+                              <a 
+                                href={prob.link} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="btn btn-ghost btn-xs"
+                                style={{ textDecoration: 'none', padding: '4px 8px' }}
+                              >
+                                Solve ↗
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setSelectedLeafPattern(null)}
+                style={{ width: '100%' }}
+              >
+                Close Drawer
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
