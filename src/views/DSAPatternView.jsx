@@ -97,16 +97,35 @@ export default function DSAPatternView({ state, mutateState, addToast }) {
 
     // Automatically parse clean username if full URL is pasted
     if (username.includes('leetcode.com')) {
-      const match = username.match(/leetcode\.com\/(?:u\/)?([a-zA-Z0-9_-]+)/);
-      if (match && match[1]) {
-        username = match[1];
-        setLcUsername(username);
+      try {
+        // Strip trailing slash if present
+        const cleanUrl = username.replace(/\/$/, '');
+        const parts = cleanUrl.split('/');
+        const lastSegment = parts[parts.length - 1];
+        if (lastSegment && lastSegment.toLowerCase() !== 'u' && lastSegment.toLowerCase() !== 'leetcode.com') {
+          username = lastSegment;
+          setLcUsername(username);
+        } else {
+          addToast('Please append your username to the end of the URL (e.g. /u/username)', 'var(--coral)');
+          return;
+        }
+      } catch (e) {
+        addToast('Invalid URL format', 'var(--coral)');
+        return;
       }
+    }
+
+    if (username.toLowerCase() === 'u' || !username) {
+      addToast('Please specify a valid username', 'var(--coral)');
+      return;
     }
 
     setLcLoading(true);
     try {
       const res = await fetch(`https://leetcode-stats-api.herokuapp.com/${username}`);
+      if (!res.ok) {
+        throw new Error('Network response was not ok');
+      }
       const data = await res.json();
       if (data.status === 'success') {
         setLcStats(data);
@@ -117,10 +136,10 @@ export default function DSAPatternView({ state, mutateState, addToast }) {
         // Notify other views (like DashboardView) to recalculate
         window.dispatchEvent(new Event('progress_change_event'));
       } else {
-        addToast(data.message || 'Failed to retrieve stats', 'var(--coral)');
+        addToast(data.message || 'Username not found on LeetCode', 'var(--coral)');
       }
     } catch (err) {
-      addToast('Error contacting LeetCode stats API', 'var(--coral)');
+      addToast('Error contacting LeetCode stats API. Verify your username/connection.', 'var(--coral)');
     } finally {
       setLcLoading(false);
     }
