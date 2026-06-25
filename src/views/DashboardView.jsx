@@ -6,7 +6,7 @@ import { mlPhasesData } from '../data/mlResources';
 import { dsaPatternsData } from '../data/dsaPatterns';
 import DsaMindmap from '../components/dsa/DsaMindmap';
 
-export default function DashboardView({ state, mutateState, onNavigate, todayContext, addToast }) {
+export default function DashboardView({ state, mutateState, onNavigate, todayContext, addToast, clearOverdueTasks }) {
   const s = state;
   const ctx = todayContext;
   const wt = s.weekTasks || {};
@@ -16,7 +16,15 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
   const appSent = s.companies.filter(c => c.status !== 'not applied').length;
   const certDone = s.certifications.filter(c => c.progress >= 100).length;
   const certTotal = s.certifications.length;
-  const dsaSolved = (s.dsaProblems || []).filter(d => d.status === 'solved').length;
+  const patternSolvedCount = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('placement_os_dsaPatterns_v1') || "[]").length;
+    } catch(e) {
+      return 0;
+    }
+  })();
+  const realLcSolved = Number(localStorage.getItem('leetcode_solved_count_v1') || '0');
+  const dsaSolved = Math.max(realLcSolved, patternSolvedCount + (s.dsaProblems || []).filter(d => d.status === 'solved').length);
   const hackReg = s.hackathons.filter(h => h.reg === 'registered' || h.reg === 'submitted').length;
   const activeWeek = ctx.activeWeek;
   const weekTasks = activeWeek ? (activeWeek.tasks || []) : [];
@@ -180,6 +188,36 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
 
   return (
     <div style={{ animation: 'fade-in 0.4s ease-out' }}>
+      {/* GOLDMAN SACHS HERO BANNER */}
+      <div className="card gs-hero-banner-main" style={{ 
+        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(0,0,0,0.3) 100%)', 
+        border: '1px solid #D4AF37', 
+        borderRadius: 'var(--rs)', 
+        padding: '16px 20px', 
+        marginBottom: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        boxShadow: '0 4px 20px rgba(212, 175, 55, 0.1)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ fontSize: '32px' }}>🏆</div>
+          <div>
+            <div style={{ fontWeight: 700, color: '#D4AF37', fontSize: '14px', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Goldman Sachs India Hackathon Finalist 2025
+            </div>
+            <div style={{ fontSize: '12.5px', color: 'var(--t2)', marginTop: '2px', lineHeight: 1.4 }}>
+              National Finalist (Top ~1% nationally) • Tata Steel Production Dashboard deployed • Target: DS/ML/SDE Roles by Dec 2026
+            </div>
+          </div>
+        </div>
+        <button className="btn btn-ghost btn-sm" style={{ borderColor: '#D4AF37', color: '#D4AF37' }} onClick={() => onNavigate('profile')}>
+          MD Playbook Leverage →
+        </button>
+      </div>
+
       <div className="ph" style={{ marginBottom: '20px' }}>
         <div>
           <div className="ph-eyebrow">Week {ctx.weekNum + 1} · {ctx.dayName}</div>
@@ -187,8 +225,13 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
           <div className="ph-sub">{activeWeek ? activeWeek.title : 'Placement Execution OS'} {activeWeek ? `· ${activeWeek.dates}` : ''}</div>
         </div>
         {overdueCount > 0 && (
-          <div className="badge b-red" style={{ fontSize: '11px', padding: '8px 14px' }}>
-            ⚠ {overdueCount} overdue task{overdueCount > 1 ? 's' : ''}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="badge b-red" style={{ fontSize: '11px', padding: '8px 14px' }}>
+              ⚠ {overdueCount} overdue task{overdueCount > 1 ? 's' : ''}
+            </div>
+            <button className="btn btn-danger btn-xs" onClick={clearOverdueTasks} style={{ padding: '6px 12px' }}>
+              Reset Overdue Tasks
+            </button>
           </div>
         )}
       </div>
@@ -254,22 +297,22 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '14px', margin: 0, fontFamily: 'var(--mono)', textTransform: 'uppercase', color: 'var(--t2)' }}>Application Speedometer</h3>
-              <span className={`badge ${appSent >= 350 ? 'b-green' : 'b-amber'}`} style={{ fontSize: '10px' }}>
-                {appSent >= 350 ? 'On Track' : 'Behind Pace'}
+              <span className={`badge ${appSent >= 100 ? 'b-green' : 'b-amber'}`} style={{ fontSize: '10px' }}>
+                {appSent >= 100 ? 'On Track' : 'Behind Pace'}
               </span>
             </div>
             
             <div style={{ display: 'flex', gap: '20px', margin: '14px 0' }}>
               <div>
                 <span style={{ fontSize: '24px', fontWeight: 800, color: 'var(--volt)' }}>{appSent}</span>
-                <span style={{ fontSize: '11px', color: 'var(--t3)', block: 'inline', marginLeft: '6px' }}>/ 350+ goal</span>
+                <span style={{ fontSize: '11px', color: 'var(--t3)', block: 'inline', marginLeft: '6px' }}>/ 100 goal</span>
               </div>
             </div>
 
             <div style={{ fontSize: '11px', color: 'var(--t2)', marginBottom: '8px' }}>
-              Pace bar: Dec target is 350 applications. Current pace: {Math.round(appSent/350*100)}%
+              Pace bar: Dec target is 100 applications. Current pace: {Math.round(appSent/100*100)}%
             </div>
-            {renderProgressBar(appSent / 3.5, 'var(--volt)')}
+            {renderProgressBar(Math.min(100, appSent), 'var(--volt)')}
           </div>
 
           <button 
@@ -292,9 +335,9 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0' }}>
               <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--electric)' }}>
                 {(() => {
-                  const dsaPct = Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100);
+                  const dsaPct = Math.min(100, Math.round((dsaSolved / 196) * 100));
                   const sysDesignPct = Math.round((systemDesignCount / totalSystemDesignCheckpoints) * 100);
-                  const appPct = Math.min(100, Math.round((appSent / 350) * 100));
+                  const appPct = Math.min(100, Math.round((appSent / 100) * 100));
                   const certPct = certTotal ? Math.round((certDone / certTotal) * 100) : 0;
                   
                   let tDone = 0, tTotal = 0;
@@ -321,10 +364,10 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
-                  <span>DSA (Striver/NeetCode)</span>
-                  <span>{Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100)}%</span>
+                  <span>DSA (Unified Solve Count)</span>
+                  <span>{Math.min(100, Math.round((dsaSolved / 196) * 100))}%</span>
                 </div>
-                {renderProgressBar(Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100), 'var(--electric)')}
+                {renderProgressBar(Math.min(100, Math.round((dsaSolved / 196) * 100)), 'var(--electric)')}
               </div>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
@@ -336,9 +379,9 @@ export default function DashboardView({ state, mutateState, onNavigate, todayCon
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>
                   <span>Applications</span>
-                  <span>{Math.min(100, Math.round((appSent / 350) * 100))}%</span>
+                  <span>{Math.min(100, Math.round((appSent / 100) * 100))}%</span>
                 </div>
-                {renderProgressBar(Math.min(100, Math.round((appSent / 350) * 100)), 'var(--volt)')}
+                {renderProgressBar(Math.min(100, Math.round((appSent / 100) * 100)), 'var(--volt)')}
               </div>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--t2)' }}>

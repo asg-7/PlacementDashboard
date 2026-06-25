@@ -7,7 +7,7 @@ import CompaniesView from './views/CompaniesView';
 import ApplicationsView from './views/ApplicationsView';
 import HackathonsView from './views/HackathonsView';
 import CertificationsView from './views/CertificationsView';
-import DsaView from './views/DsaView';
+import DSAPatternView from './views/DSAPatternView';
 import ProjectsView from './views/ProjectsView';
 import YoutubeView from './views/YoutubeView';
 import RoadmapView from './views/RoadmapView';
@@ -174,10 +174,11 @@ export default function App() {
         if (!merged.internships) merged.internships = JSON.parse(JSON.stringify(SEED.internships || []));
         if (!merged.retro) merged.retro = JSON.parse(JSON.stringify(SEED.retro || {}));
         
-        // Automatic migration: update to the user's actual projects if "ResumeIQ" is not in the projects list or old placeholder projects are found
+        // Automatic migration: update to the user's actual projects if "ResumeIQ" is not in the projects list, SignalRank is missing, or old placeholders are found
         const hasResumeIQ = merged.projects && merged.projects.some(p => p.githubLink && p.githubLink.includes('resumeiq'));
+        const hasSignalRank = merged.projects && merged.projects.some(p => p.name && p.name.includes('SignalRank'));
         const hasOldPlaceholder = merged.projects && merged.projects.some(p => p.name.includes('LangChain RAG Chatbot') || p.name.includes('Time Series Forecasting') || p.name.includes('Tata Steel ML Work') || p.name.includes('Salary Predictor – Streamlit App') || p.name.includes('Salary Predictor - Streamlit App'));
-        if (!hasResumeIQ || hasOldPlaceholder) {
+        if (!hasResumeIQ || hasOldPlaceholder || !hasSignalRank) {
           merged.projects = JSON.parse(JSON.stringify(SEED.projects));
         }
         
@@ -360,8 +361,17 @@ export default function App() {
     }
   };
 
-  const striverCount = getProgressCount('striver_a2z');
-  const neetcodeCount = getProgressCount('neetcode_150');
+  // Unified DSA solved count from real API storage and local checkbox lists
+  const patternSolvedCount = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('placement_os_dsaPatterns_v1') || "[]").length;
+    } catch(e) {
+      return 0;
+    }
+  })();
+  const realLcSolved = Number(localStorage.getItem('leetcode_solved_count_v1') || '0');
+  const dsaSolvedUnified = Math.max(realLcSolved, patternSolvedCount + state.dsaProblems.filter(d => d.status === 'solved').length);
+
   const systemDesignCount = getProgressCount('system_design');
 
   let tasksDone = 0, totalTasks = 0;
@@ -372,9 +382,9 @@ export default function App() {
     });
   });
 
-  const dsaPct = Math.round(((striverCount / 250) * 0.5 + (neetcodeCount / 150) * 0.5) * 100);
+  const dsaPct = Math.min(100, Math.round((dsaSolvedUnified / 196) * 100)); // Target 196 problems from war plan
   const sysDesignPct = Math.round((systemDesignCount / 124) * 100);
-  const appPct = Math.min(100, Math.round((appSent / 350) * 100));
+  const appPct = Math.min(100, Math.round((appSent / 100) * 100)); // Target 100 applications
   const certPct = state.certifications.length ? Math.round((certDone / state.certifications.length) * 100) : 0;
   const taskPct = totalTasks > 0 ? Math.round((tasksDone / totalTasks) * 100) : 0;
 
@@ -385,6 +395,21 @@ export default function App() {
     (certPct * 0.15) +
     (taskPct * 0.20)
   );
+
+  const handleClearOverdueTasks = () => {
+    mutateState(draft => {
+      const todayDate = new Date(getTodayISO());
+      draft.roadmapWeeks.forEach(w => {
+        const isoMatch = w.dates && w.dates.match(/(\d{4}-\d{2}-\d{2})\s*[–—-]+\s*(\d{4}-\d{2}-\d{2})/);
+        const isLikelyPast = isoMatch ? (() => { try { return new Date(isoMatch[2]) < todayDate; } catch(e) { return false; } })() : false;
+        if (isLikelyPast) {
+          const tasks = w.tasks || [];
+          draft.weekTasks[w.id] = new Array(tasks.length).fill(true);
+        }
+      });
+    });
+    addToast('All overdue tasks cleared! Starting fresh daily.');
+  };
 
 
   // Backup handlers
@@ -443,6 +468,7 @@ export default function App() {
             onNavigate={setView}
             todayContext={todayContext}
             addToast={addToast}
+            clearOverdueTasks={handleClearOverdueTasks}
           />
         );
       case 'daily':
@@ -495,7 +521,7 @@ export default function App() {
         );
       case 'dsa':
         return (
-          <DsaView
+          <DSAPatternView
             state={state}
             mutateState={mutateState}
             addToast={addToast}

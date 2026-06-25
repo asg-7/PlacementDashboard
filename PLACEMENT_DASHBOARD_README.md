@@ -4,16 +4,16 @@ A lightweight, client-side dashboard to plan, track, and execute placement roadm
 
 ---
 
-## ✨ Latest Update: Striver DSA Sheet & ML/AIML Roadmap Integration (2026-06-03)
+## ✨ Latest Update: Upgraded DSA Tab & Dashboard Fixes (2026-06-25)
 
 The dashboard has been updated to include comprehensive study modules for DSA and Machine Learning:
 
-- **Striver A2Z DSA Sheet**: Fully integrated curriculum containing 19 topics and 34 core problems with deep reference links. Implemented a gated lock mechanism requiring a 70% completion rate on previous sections to unlock the next.
-- **ML & AIML Roadmap**: A 5-phase interactive curriculum mapping core mathematics, classical algorithms, deep learning architectures, MLOps, and interview preparation resources.
-- **Curriculum Cockpit**: A new dashboard widget displaying real-time completion percentages for the custom DSA Roadmap, Striver A2Z Sheet, and ML Roadmap.
-- **Interactive Q&A Bank**: Preloaded deck of frequently asked Machine Learning theory and system design questions with interactive reveal cards.
-- **Cross-Platform Progress Hook**: A custom reactive event bus syncing localStorage checkmarks dynamically across widgets.
-- **Company Kits Filters**: Filter DSA problems by target company prep terms directly in the Company Kits tab.
+- **Upgraded DSA Performance Cockpit**: Features three new tabs: **Pattern Hunt** (a filterable table of 180+ problems from NeetCode 150 and Striver A2Z sheets, complete with LC/GFG links and YouTube video guides), **30-Week War Plan** (complete week-by-week DSA roadmap tracking with a daily green streak heatmap), and **Cheat Sheet** (Sean Prashad's heuristics and labuladong's coding templates).
+- **Real LeetCode API Syncer**: Replaced simulated profiles sync with a real profile sync calling `https://leetcode-stats-api.herokuapp.com/{username}` to update solves instantly.
+- **Goldman Sachs Finalist Hero**: Golden header banner leveraging your Top ~1% national hackathon shortlist.
+- **Reset Overdue Tasks**: Clear overdue backlog items to prevent demotivation spirals.
+- **Speedometer Goal Adjustment**: Target adjusted to a realistic 100 applications.
+- **SignalRank Project**: Seeded SignalRank (IndiaRuns) project and verified live deployment status banners.
 
 ---
 

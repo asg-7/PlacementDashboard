@@ -202,8 +202,8 @@ export default function ProjectsView({ state, mutateState, addToast, resetProjec
                 <div className="proj-name">{p.name}</div>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                   <span className={getStatusBadgeClass(p.status)}>{p.status}</span>
-                  <span className={`badge ${p.liveUrl ? 'b-green' : 'b-red'}`} style={{ fontSize: '10px' }}>
-                    {p.liveUrl ? '🟢 Deployed' : '🔴 Not Deployed'}
+                  <span className={`badge ${p.liveUrl ? 'b-green' : 'b-amber'}`} style={{ fontSize: '10px' }}>
+                    {p.liveUrl ? '🟢 Deployed' : '🟡 In Progress'}
                   </span>
                 </div>
               </div>
@@ -249,10 +249,14 @@ export default function ProjectsView({ state, mutateState, addToast, resetProjec
                     GitHub ↗
                   </a>
                 )}
-                {p.liveUrl && (
+                {p.liveUrl ? (
                   <a href={p.liveUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
                     Live Demo ↗
                   </a>
+                ) : (
+                  <button className="btn btn-ghost btn-sm" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+                    (in progress)
+                  </button>
                 )}
                 <button className="btn btn-ghost btn-xs" onClick={() => setEditingProj(p)}>Edit</button>
                 <button className="btn btn-danger btn-xs" onClick={() => handleDelete(p.id)}>Delete</button>
